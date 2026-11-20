@@ -1,0 +1,259 @@
+/* Aplicación: tabla del workspace, pestañas de objetos abiertos, sondeo de cambios, disposición y temas. */
+"use strict";
+
+const ALL_COLS = [
+  ["name", "Name"], ["value", "Value"], ["size", "Size"], ["bytes", "Bytes"], ["class", "Class"],
+  ["min", "Min"], ["max", "Max"], ["range", "Range"], ["mean", "Mean"], ["median", "Median"], ["mode", "Mode"],
+  ["std", "Std"], ["var", "Var"], ["sum", "Sum"], ["nnz", "Nnz"], ["nans", "NaN"],
+];
+const DEFAULT_COLS = ["name", "value", "size", "bytes", "class", "min", "max", "range", "mean", "median", "mode", "std"];
+const STAT_COLS = new Set(["min", "max", "range", "mean", "median", "mode", "std", "var", "sum", "nnz", "nans"]);
+const KIND_ICON = { array: "#", table: "⊞", sympy: "∑", container: "{}", scalar: "·", callable: "ƒ", object: "◇" };
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("workspacepy." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("workspacepy." + k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } },
+};
+
+class App {
+  constructor() {
+    this.vars = [];
+    this.version = -1;
+    this.sort = store.get("sort", { key: "name", dir: 1 });
+    this.cols = new Set(store.get("cols", DEFAULT_COLS));
+    this.selected = null;
+    this.tabs = new Map();       // pathKey -> {path, viewer, tabEl, dirty}
+    this.activeKey = null;
+    this.hidden = false;
+    this.offline = false;
+    this.$ = (id) => document.getElementById(id);
+    this._initChrome();
+    const solo = location.hash.startsWith("#open=");
+    if (solo) document.body.classList.add("solo");
+    this.refreshAll().then(() => { if (solo) this.open(JSON.parse(decodeURIComponent(location.hash.slice(6)))); });
+    setInterval(() => this._poll(), 700);
+  }
+
+  /* ---------------------------------------------------------------- interfaz general */
+  _initChrome() {
+    this.$("filter").addEventListener("input", () => this.renderTable());
+    this.$("btnRefresh").onclick = () => this.refreshAll();
+    this.$("showHidden").onchange = (e) => { this.hidden = e.target.checked; this.refreshAll(); };
+    this.$("btnCols").onclick = (e) => { e.stopPropagation(); this._colMenu(e.clientX, e.clientY, this.$("btnCols")); };
+    this.$("btnLayout").onclick = () => this._setLayout(!this.$("main").classList.contains("vertical"));
+    this.$("btnTheme").onclick = () => this._cycleTheme();
+    this._setLayout(store.get("vertical", innerWidth < 900 || innerHeight > innerWidth));
+    this._applyTheme(store.get("theme", "auto"));
+    this._initSplitter();
+    document.addEventListener("click", () => { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); } });
+  }
+
+  _setLayout(vertical) {
+    const m = this.$("main"), ws = this.$("wsPane");
+    m.classList.toggle("vertical", vertical);
+    this.$("splitter").setAttribute("aria-orientation", vertical ? "horizontal" : "vertical");
+    ws.style.flex = vertical ? "0 0 38%" : "0 0 44%";
+    store.set("vertical", vertical);
+  }
+
+  _applyTheme(t) {
+    if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+    this._theme = t; store.set("theme", t);
+    for (const tab of this.tabs.values()) tab.viewer.show(tab.viewer.active, true);
+  }
+  _cycleTheme() { this._applyTheme({ auto: "light", light: "dark", dark: "auto" }[this._theme]); }
+
+  _initSplitter() {
+    const sp = this.$("splitter"), ws = this.$("wsPane"), main = this.$("main");
+    const set = (px) => { ws.style.flex = `0 0 ${Math.max(120, px)}px`; };
+    sp.addEventListener("pointerdown", (e) => {
+      sp.setPointerCapture(e.pointerId); sp.classList.add("drag");
+      const vertical = main.classList.contains("vertical"), rect = main.getBoundingClientRect();
+      const move = (ev) => set(vertical ? ev.clientY - rect.top : ev.clientX - rect.left);
+      const up = () => { sp.classList.remove("drag"); sp.removeEventListener("pointermove", move); sp.removeEventListener("pointerup", up); };
+      sp.addEventListener("pointermove", move); sp.addEventListener("pointerup", up);
+    });
+    sp.addEventListener("keydown", (e) => {
+      const vertical = main.classList.contains("vertical"), cur = vertical ? ws.offsetHeight : ws.offsetWidth;
+      const d = { ArrowLeft: -20, ArrowUp: -20, ArrowRight: 20, ArrowDown: 20 }[e.key];
+      if (d) { e.preventDefault(); set(cur + d); }
+    });
+  }
+
+  /* ---------------------------------------------------------------- sondeo y refresco */
+  async _poll() {
+    if (document.hidden) return;
+    try {
+      const { version } = await Api.version();
+      this._setOnline(true);
+      if (version !== this.version) await this.refreshAll();
+    } catch (e) { this._setOnline(false); }
+  }
+
+  _setOnline(ok) {
+    this.offline = !ok;
+    const s = this.$("status");
+    s.classList.toggle("off", !ok);
+    s.textContent = ok ? "conectado" : "sin conexión con el kernel";
+  }
+
+  async refreshAll() {
+    try {
+      const r = await Api.variables(this.hidden);
+      this.vars = r.variables; this.version = r.version;
+      this._setOnline(true);
+      this.renderTable();
+    } catch (e) { this._setOnline(false); return; }
+    for (const tab of this.tabs.values()) tab.dirty = true;
+    await this._refreshActive();
+  }
+
+  async _refreshActive() {
+    const tab = this.tabs.get(this.activeKey);
+    if (tab && tab.dirty) { tab.dirty = false; try { await tab.viewer.refresh(); } catch (e) { /* offline */ } }
+  }
+
+  /* ---------------------------------------------------------------- tabla del workspace */
+  _cell(v, key) {
+    if (STAT_COLS.has(key)) { const s = v.stats && v.stats[key]; return s === null || s === undefined ? "" : Fmt.num(s); }
+    if (key === "bytes") return String(v.bytes);
+    return v[key] === undefined ? "" : String(v[key]);
+  }
+  _sortValue(v, key) {
+    if (STAT_COLS.has(key)) { const s = v.stats && v.stats[key]; return typeof s === "number" ? s : null; }
+    if (key === "bytes") return v.bytes;
+    return String(v[key] || "").toLowerCase();
+  }
+
+  renderTable() {
+    const q = this.$("filter").value.trim().toLowerCase();
+    const cols = ALL_COLS.filter(([k]) => this.cols.has(k));
+    let rows = this.vars.filter((v) => !q || v.name.toLowerCase().includes(q) || v.class.toLowerCase().includes(q));
+    const { key, dir } = this.sort;
+    rows = rows.slice().sort((a, b) => {
+      const x = this._sortValue(a, key), y = this._sortValue(b, key);
+      if (x === null && y === null) return 0;
+      if (x === null) return 1; if (y === null) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * dir;
+    });
+    const host = this.$("wsScroll"), top = host.scrollTop;
+    if (!rows.length) {
+      host.replaceChildren(el("div", { id: "wsEmpty", text: this.vars.length ? "Ninguna variable coincide con el filtro." : "El workspace está vacío. Crea variables en el notebook." }));
+      return;
+    }
+    const thead = el("thead", {}, el("tr", {}, cols.map(([k, label]) => {
+      const th = el("th", { title: "Clic: ordenar · clic derecho: columnas" }, label, this.sort.key === k ? el("span", { class: "arrow", text: this.sort.dir > 0 ? "▲" : "▼" }) : null);
+      th.onclick = () => { this.sort = { key: k, dir: this.sort.key === k ? -this.sort.dir : 1 }; store.set("sort", this.sort); this.renderTable(); };
+      th.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); this._colMenu(e.clientX, e.clientY); };
+      return th;
+    })));
+    const tbody = el("tbody");
+    for (const v of rows) {
+      const tr = el("tr", { tabindex: "0", class: v.name === this.selected ? "sel" : "", "data-name": v.name });
+      for (const [k] of cols) {
+        const td = el("td", { class: (STAT_COLS.has(k) || k === "bytes" ? "num " : "") + (k === "name" ? "name" : k === "class" ? "cls" : ""), title: k === "value" ? v.value : null });
+        if (k === "name") td.append(el("span", { class: "kindbadge", text: KIND_ICON[v.kind] || "·" }), v.name);
+        else td.textContent = this._cell(v, k);
+        tr.append(td);
+      }
+      tr.onclick = () => { this.selected = v.name; tbody.querySelectorAll(".sel").forEach((n) => n.classList.remove("sel")); tr.classList.add("sel"); };
+      tr.ondblclick = () => this.open([v.name]);
+      tr.onkeydown = (e) => {
+        if (e.key === "Enter") this.open([v.name]);
+        else if (e.key === "Delete") this._delete(v.name);
+        else if (e.key === "ArrowDown" && tr.nextSibling) { tr.nextSibling.focus(); tr.nextSibling.click(); }
+        else if (e.key === "ArrowUp" && tr.previousSibling) { tr.previousSibling.focus(); tr.previousSibling.click(); }
+      };
+      tr.oncontextmenu = (e) => { e.preventDefault(); tr.click(); this._ctxMenu(e.clientX, e.clientY, v); };
+      tbody.append(tr);
+    }
+    host.replaceChildren(el("table", { class: "ws" }, thead, tbody));
+    host.scrollTop = top;
+  }
+
+  _menuAt(menu, x, y) {
+    menu.classList.remove("hidden");
+    menu.style.left = Math.min(x, innerWidth - menu.offsetWidth - 6) + "px";
+    menu.style.top = Math.min(y, innerHeight - menu.offsetHeight - 6) + "px";
+  }
+  _colMenu(x, y, anchor) {
+    const m = this.$("colMenu");
+    m.replaceChildren(...ALL_COLS.map(([k, label]) => {
+      const cb = el("input", { type: "checkbox" }); cb.checked = this.cols.has(k); cb.disabled = k === "name";
+      cb.onchange = () => { cb.checked ? this.cols.add(k) : this.cols.delete(k); store.set("cols", [...this.cols]); this.renderTable(); };
+      return el("label", { onclick: (e) => e.stopPropagation() }, cb, label);
+    }));
+    if (anchor) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; }
+    this._menuAt(m, x, y);
+  }
+  _ctxMenu(x, y, v) {
+    const m = this.$("ctxMenu");
+    m.replaceChildren(
+      el("button", { onclick: () => this.open([v.name]) }, "Abrir"),
+      el("button", { onclick: () => this.popOut([v.name]) }, "Abrir en ventana aparte"),
+      el("button", { onclick: () => navigator.clipboard && navigator.clipboard.writeText(v.name).catch(() => {}) }, "Copiar nombre"),
+      el("button", { class: "danger", onclick: () => this._delete(v.name) }, "Borrar variable"));
+    this._menuAt(m, x, y);
+  }
+  async _delete(name) {
+    if (!confirm(`¿Borrar la variable «${name}» del kernel?`)) return;
+    try { await Api.del(name); await this.refreshAll(); } catch (e) { alert(e.message); }
+  }
+
+  /* ---------------------------------------------------------------- pestañas de objetos */
+  async open(path) {
+    const key = pathKey(path);
+    let tab = this.tabs.get(key);
+    if (!tab) {
+      const viewer = new ObjectViewer(this, path);
+      const label = path.length === 1 ? path[0] : path[0] + path.slice(1).map((p) => (p.startsWith("[") ? p : p.startsWith("'") ? "[" + p + "]" : "." + p)).join("");
+      const tabEl = el("div", { class: "tab", role: "tab", title: path.join(" › ") },
+        el("span", { text: label }),
+        el("button", { class: "x", title: "Cerrar", "aria-label": "Cerrar pestaña", onclick: (e) => { e.stopPropagation(); this.close(key); } }, "×"));
+      tabEl.onclick = () => this.activate(key);
+      tabEl.onauxclick = (e) => { if (e.button === 1) this.close(key); };
+      this.$("tabs").append(tabEl);
+      this.$("viewBody").append(viewer.el);
+      tab = { path, viewer, tabEl, dirty: false };
+      this.tabs.set(key, tab);
+      this.$("placeholder").classList.add("hidden");
+      try { await viewer.load(); } catch (e) { /* offline */ }
+    }
+    this.activate(key);
+  }
+
+  activate(key) {
+    this.activeKey = key;
+    for (const [k, t] of this.tabs) {
+      t.tabEl.classList.toggle("active", k === key);
+      t.viewer.el.classList.toggle("active", k === key);
+    }
+    const tab = this.tabs.get(key);
+    if (tab) { tab.tabEl.scrollIntoView({ block: "nearest", inline: "nearest" }); this._refreshActive(); }
+  }
+
+  close(key) {
+    const tab = this.tabs.get(key);
+    if (!tab) return;
+    tab.tabEl.remove(); tab.viewer.el.remove(); this.tabs.delete(key);
+    if (this.activeKey === key) {
+      const keys = [...this.tabs.keys()];
+      this.activeKey = null;
+      if (keys.length) this.activate(keys[keys.length - 1]);
+    }
+    if (!this.tabs.size) this.$("placeholder").classList.remove("hidden");
+  }
+
+  markStale(path, stale) {
+    const tab = this.tabs.get(pathKey(path));
+    if (tab) tab.tabEl.classList.toggle("stale", stale);
+  }
+
+  popOut(path) {
+    const url = `${location.pathname}?token=${encodeURIComponent(TOKEN)}#open=${encodeURIComponent(JSON.stringify(path))}`;
+    window.open(url, "_blank", "popup,width=900,height=650");
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => { window.app = new App(); });

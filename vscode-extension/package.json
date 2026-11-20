@@ -1,0 +1,35 @@
+{
+  "name": "workspacepy",
+  "displayName": "WorkspacePy",
+  "description": "Abre el workspace estilo MATLAB de WorkspacePy al lado de tu notebook (Simple Browser).",
+  "version": "0.1.0",
+  "publisher": "workspacepy",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Data Science", "Notebooks", "Visualization"],
+  "extensionKind": ["workspace"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "workspacepy.open", "title": "WorkspacePy: Abrir workspace al lado" },
+      { "command": "workspacepy.openUrl", "title": "WorkspacePy: Abrir desde una URL…" }
+    ],
+    "configuration": {
+      "title": "WorkspacePy",
+      "properties": {
+        "workspacepy.autoOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Abrir el panel automáticamente al lado cuando un kernel ejecuta workspacepy.start()."
+        },
+        "workspacepy.registryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Ruta de active.json. Vacío = ~/.workspacepy/active.json (o $WORKSPACEPY_HOME)."
+        }
+      }
+    }
+  },
+  "repository": { "type": "git", "url": "https://github.com/TU_USUARIO/workspacepy" }
+}
