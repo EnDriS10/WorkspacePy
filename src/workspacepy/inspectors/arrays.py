@@ -13,7 +13,7 @@ MAX_DENSE_ELEMENTS = 2_000_000
 
 
 def full_key(arr, index: Sequence[int], row: int, col: int) -> tuple:
-    """Índice completo dentro de un ndarray a partir de (índice inicial, fila, columna) del visor."""
+    """Full index into an ndarray from the viewer's (leading index, row, column)."""
     if arr.ndim == 0:
         return ()
     if arr.ndim == 1:
@@ -79,7 +79,7 @@ class NumpyInspector(Inspector):
         a2 = slice2d(a, index)
         r0, r1, c0, c1 = clamp_window(a2.shape[0], a2.shape[1], r0, r1, c0, c1)
         values = a2[r0:r1, c0:c1].tolist()
-        col_labels = ["valor"] if a.ndim <= 1 else None
+        col_labels = ["value"] if a.ndim <= 1 else None
         return make_window(
             values, a2.shape[0], a2.shape[1], r0, c0, digits, col_labels=col_labels,
             lead_shape=list(a.shape[:-2]) if a.ndim > 2 else [], index=lead_index(a, index),
@@ -89,14 +89,14 @@ class NumpyInspector(Inspector):
     def set_item(self, index, row, col, text) -> str:
         a = self.obj
         if not a.flags.writeable:
-            raise ValueError("el array es de solo lectura")
+            raise ValueError("the array is read-only")
         try:
             key = full_key(a, index, row, col)
             value = parse_value(text, a.dtype.kind)
             a[key] = value
             return format_scalar(a[key], 10)
         except (IndexError, OverflowError, TypeError) as exc:
-            raise ValueError(f"no se pudo asignar: {exc}") from None
+            raise ValueError(f"could not assign: {exc}") from None
 
 
 @register

@@ -1,4 +1,4 @@
-/* Cliente de la API local. Todas las rutas llevan el token que venía en la URL. */
+/* Local API client. Every route carries the token that came in the URL. */
 "use strict";
 
 const TOKEN = new URLSearchParams(location.search).get("token") || "";
@@ -21,15 +21,18 @@ const Api = {
     try {
       resp = await fetch(url, opts);
     } catch (e) {
-      throw Object.assign(new Error("sin conexión con el kernel"), { offline: true });
+      throw Object.assign(new Error("no connection to the kernel"), { offline: true });
     }
     let data = null;
-    try { data = await resp.json(); } catch (e) { /* cuerpo vacío */ }
+    try { data = await resp.json(); } catch (e) { /* empty body */ }
     if (!resp.ok) throw new Error((data && data.error) || ("HTTP " + resp.status));
     return data;
   },
   version() { return this.call("GET", "version"); },
-  variables(hidden) { return this.call("GET", "variables", { hidden: hidden ? 1 : 0 }); },
+  variables(hidden, stats) { return this.call("GET", "variables", { hidden: hidden ? 1 : 0, stats: stats === false ? 0 : 1 }); },
+  requestOpen(path) { return this.call("POST", "open", {}, { path }); },
+  closeOpen(path) { return this.call("POST", "close", {}, { path }); },
+  openQueue(after) { return this.call("GET", "open_queue", { after }); },
   describe(path) { return this.call("GET", "describe", { path }); },
   window(path, r0, r1, c0, c1, index, digits) {
     return this.call("GET", "window", { path, r0, r1, c0, c1, index: index || [], digits: digits || 6 });
@@ -41,7 +44,7 @@ const Api = {
   del(name) { return this.call("POST", "delete", {}, { path: [name] }); },
 };
 
-/* ---- utilidades de formato compartidas ---- */
+/* ---- shared formatting helpers ---- */
 const Fmt = {
   num(v) {
     if (v === null || v === undefined) return "";

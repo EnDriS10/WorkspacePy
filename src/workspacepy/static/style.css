@@ -44,7 +44,7 @@ input[type=text], input[type=search], input[type=number], select { background: v
 #status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 #status.off::before { background: var(--danger); }
 
-/* ---- disposición dividida ---- */
+/* ---- split layout ---- */
 #main { display: flex; height: calc(100% - 38px); }
 #main.vertical { flex-direction: column; }
 #wsPane, #viewPane { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--panel); }
@@ -78,7 +78,7 @@ table.ws td.cls { color: var(--muted); }
 #colMenu label:hover, #ctxMenu button:hover { background: var(--hover); }
 #ctxMenu button.danger { color: var(--danger); }
 
-/* ---- pestañas de objetos ---- */
+/* ---- object tabs ---- */
 #tabs { display: flex; gap: 1px; background: var(--panel-2); border-bottom: 1px solid var(--border); overflow-x: auto; min-height: 33px; }
 .tab { display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 12px; border-right: 1px solid var(--border); cursor: pointer; white-space: nowrap; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .tab.active { background: var(--panel); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
@@ -128,7 +128,7 @@ table.ws td.cls { color: var(--muted); }
 .gridnote { position: absolute; right: 12px; bottom: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 2px 8px; color: var(--muted); font-size: 11px; pointer-events: none; z-index: 10; }
 .gridnote.err { color: var(--danger); border-color: var(--danger); }
 
-/* ---- gráficas ---- */
+/* ---- plots ---- */
 .plotbox { position: absolute; inset: 0; padding: 6px; }
 .plotbox canvas { width: 100%; height: 100%; display: block; }
 .plotbar { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
@@ -150,7 +150,7 @@ table.mini tr.clickable { cursor: default; }
 table.mini tr.clickable:hover { background: var(--hover); }
 .hint { color: var(--muted); font-size: 11px; padding: 6px 2px; }
 
-/* ---- ajustes de disposición ---- */
+/* ---- layout tweaks ---- */
 .vmain > .pane { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .vmain > .pane > .pane { position: absolute; inset: 0; overflow: hidden; }
 body.solo #tabs { display: none; }
@@ -161,3 +161,10 @@ table.ws td.name { background: var(--panel); }
 table.ws tbody tr:hover td.name { background: var(--hover); }
 table.ws tbody tr.sel td.name { background: var(--sel); }
 table.ws th:first-child { z-index: 4; }
+
+/* ---- page modes (VS Code extension shows the workspace and the viewer in separate panels) ---- */
+body[data-mode="workspace"] #splitter, body[data-mode="workspace"] #viewPane, body[data-mode="workspace"] #btnLayout { display: none; }
+body[data-mode="workspace"] #wsPane { flex: 1 1 auto !important; }
+body[data-mode="viewer"] #wsPane, body[data-mode="viewer"] #splitter, body[data-mode="viewer"] #topbar { display: none; }
+body[data-mode="viewer"] #main { height: 100%; }
+body[data-mode="viewer"] #placeholder { padding: 24px 16px; }

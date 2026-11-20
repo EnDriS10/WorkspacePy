@@ -1,9 +1,9 @@
-"""Clase base `Inspector`, registro de inspectores y utilidades comunes de ventanas de tabla.
+"""Clase base `Inspector`, registro de inspectores y utilidades comunes de table windows.
 
-Un *inspector* sabe describir un tipo de objeto: qué mostrar en la fila del workspace
-(Name / Value / Size / Bytes / Class), qué mostrar al abrirlo (propiedades, tabla, hijos)
-y qué gráficas ofrece. Para soportar un tipo nuevo basta con heredar de `Inspector`,
-implementar `matches` y decorar la clase con `@register`.
+An *inspector* knows how to describe one kind of object: what to show in the workspace row
+(Name / Value / Size / Bytes / Class), what to show when it is opened (properties, table, children)
+and which plots it offers. To support a new type just subclass `Inspector`,
+implement `matches` and decorate the class with `@register`.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ _REGISTRY: List[type] = []
 
 
 def register(cls):
-    """Decorador: añade un inspector al registro (se ordena por `priority`, mayor primero)."""
+    """Decorator: add an inspector to the registry (sorted by `priority`, highest first)."""
     if cls not in _REGISTRY:
         _REGISTRY.append(cls)
         _REGISTRY.sort(key=lambda c: -c.priority)
@@ -32,40 +32,40 @@ def register(cls):
 
 
 def inspector_for(obj: Any) -> "Inspector":
-    """Devuelve el inspector adecuado para `obj` (siempre hay uno: GenericInspector)."""
+    """Return the right inspector for `obj` (there is always one: the generic fallback)."""
     for cls in _REGISTRY:
         try:
             if cls.matches(obj):
                 return cls(obj)
         except Exception:
             continue
-    raise RuntimeError("no hay inspector genérico registrado")  # pragma: no cover
+    raise RuntimeError("no generic inspector registered")  # pragma: no cover
 
 
 def registered_inspectors() -> list:
     return list(_REGISTRY)
 
 
-# --------------------------------------------------------------------------- parseo de valores
+# --------------------------------------------------------------------------- value parsing
 
 
 def parse_value(text: str, dtype_kind: str) -> Any:
-    """Convierte el texto de una celda editada al tipo de un array NumPy (por dtype.kind)."""
+    """Convert the text of an edited cell to the type of a NumPy array (by dtype.kind)."""
     t = text.strip()
     if dtype_kind == "b":
         low = t.lower()
-        if low in ("true", "1", "t", "yes", "si", "sí"):
+        if low in ("true", "1", "t", "yes"):
             return True
         if low in ("false", "0", "f", "no"):
             return False
-        raise ValueError("valor booleano no válido (usa True/False)")
+        raise ValueError("invalid boolean value (use True/False)")
     if dtype_kind in "iu":
         try:
             return int(t)
         except ValueError:
             f = float(t)
             if f != int(f):
-                raise ValueError("el array es de enteros; ese valor tiene decimales") from None
+                raise ValueError("the array holds integers; that value has decimals") from None
             return int(f)
     if dtype_kind == "f":
         if t.count(",") == 1 and "." not in t:
@@ -80,14 +80,14 @@ def parse_value(text: str, dtype_kind: str) -> Any:
 
 
 def parse_literal(text: str) -> Any:
-    """Interpreta texto como literal de Python (3, 2.5, 'hola', [1, 2], ...). Nunca ejecuta código."""
+    """Interpret text as a Python literal (3, 2.5, 'hello', [1, 2], ...). Never executes code."""
     try:
         return ast.literal_eval(text.strip())
     except (ValueError, SyntaxError):
-        raise ValueError("no es un literal de Python válido (números, 'texto', listas, ...)") from None
+        raise ValueError("not a valid Python literal (numbers, 'text', lists, ...)") from None
 
 
-# --------------------------------------------------------------------------- ventanas de tabla
+# --------------------------------------------------------------------------- table windows
 
 
 def clamp_window(nrows: int, ncols: int, r0: int, r1: int, c0: int, c1: int) -> Tuple[int, int, int, int]:
@@ -106,7 +106,7 @@ def make_window(values, nrows: int, ncols: int, r0: int, c0: int, digits: int = 
                 row_labels: Optional[Sequence[str]] = None,
                 col_labels: Optional[Sequence[str]] = None,
                 formatter=None, **extra) -> dict:
-    """Empaqueta una ventana de celdas (lista de listas) lista para enviar al navegador."""
+    """Pack a window of cells (list of lists) ready to send to the browser."""
     fmt = formatter or format_scalar
     cells = [[_cut(fmt(v, digits)) for v in row] for row in values]
     r1 = r0 + len(cells)
@@ -122,17 +122,17 @@ def make_window(values, nrows: int, ncols: int, r0: int, c0: int, digits: int = 
     return out
 
 
-# --------------------------------------------------------------------------- clase base
+# --------------------------------------------------------------------------- base class
 
 
 class Inspector:
-    """Describe un objeto para el workspace. Subclases: ver `arrays.py`, `symbolic.py`, ..."""
+    """Describe an object for the workspace. Subclasses: see `arrays.py`, `symbolic.py`, ..."""
 
-    #: tipo de visor del front-end: "array" | "table" | "sympy" | "container" | "scalar" | "callable" | "object"
+    #: front-end viewer kind: "array" | "table" | "sympy" | "container" | "scalar" | "callable" | "object"
     kind: str = "object"
-    #: orden de comprobación (mayor = antes)
+    #: check order (higher = earlier)
     priority: int = 0
-    #: si True, no aparece en la tabla salvo que se active "mostrar funciones/módulos"
+    #: if True, it is not listed unless "functions/modules" is enabled
     hidden: bool = False
 
     def __init__(self, obj: Any):
@@ -142,7 +142,7 @@ class Inspector:
     def matches(cls, obj: Any) -> bool:
         return False
 
-    # ------------------------------------------------------------- columnas de la tabla
+    # ------------------------------------------------------------- table columns
     def class_name(self) -> str:
         return type(self.obj).__name__
 
@@ -159,19 +159,19 @@ class Inspector:
         return short_repr(self.obj)
 
     def numeric(self):
-        """Array NumPy numérico equivalente (para estadísticas y gráficas) o None."""
+        """Equivalent numeric NumPy array (for statistics and plots) or None."""
         return as_numeric_array(self.obj)
 
     # ------------------------------------------------------------- vista de detalle
     def properties(self) -> List[Tuple[str, str]]:
         t = type(self.obj)
-        return [("tipo", f"{t.__module__}.{t.__qualname__}")]
+        return [("type", f"{t.__module__}.{t.__qualname__}")]
 
     def detail(self) -> dict:
-        """Campos extra específicos del visor (LaTeX, firma, valor completo, columnas, ...)."""
+        """Extra viewer-specific fields (LaTeX, signature, full value, columns, ...)."""
         return {}
 
-    # ------------------------------------------------------------- navegación (doble clic en hijos)
+    # ------------------------------------------------------------- navigation (double click on children)
     def n_children(self) -> Optional[int]:
         return None
 
@@ -189,16 +189,16 @@ class Inspector:
         return self.n_children(), items
 
     def set_child(self, label: str, text: str) -> None:
-        raise ValueError("este objeto es de solo lectura")
+        raise ValueError("this object is read-only")
 
-    # ------------------------------------------------------------- tablas editables
+    # ------------------------------------------------------------- editable tables
     def window(self, r0: int, r1: int, c0: int, c1: int, index: Sequence[int], digits: int) -> Optional[dict]:
         return None
 
     def set_item(self, index: Sequence[int], row: int, col: int, text: str) -> str:
-        raise ValueError("este objeto es de solo lectura")
+        raise ValueError("this object is read-only")
 
-    # ------------------------------------------------------------- gráficas
+    # ------------------------------------------------------------- plots
     def plot_kinds(self) -> list:
         arr = self.numeric()
         return available_plots(arr) if arr is not None and arr.size else []
@@ -206,5 +206,5 @@ class Inspector:
     def plot(self, kind: str, index: Sequence[int], params: dict) -> dict:
         arr = self.numeric()
         if arr is None or arr.size == 0:
-            raise ValueError("este objeto no se puede representar numéricamente")
+            raise ValueError("this object cannot be represented numerically")
         return build_plot(arr, kind, index)

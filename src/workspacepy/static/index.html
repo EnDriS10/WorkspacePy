@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,27 +10,27 @@
 <body>
 <header id="topbar">
   <h1>WorkspacePy</h1>
-  <span id="status">conectado</span>
+  <span id="status">connected</span>
   <span class="spacer"></span>
-  <label title="Mostrar funciones, clases y módulos"><input type="checkbox" id="showHidden"> funciones/módulos</label>
-  <button id="btnLayout" class="icon" title="Cambiar disposición (lado a lado / apilado)">⬓</button>
-  <button id="btnTheme" class="icon" title="Tema claro/oscuro">◐</button>
-  <button id="btnRefresh" class="icon" title="Refrescar">⟳</button>
+  <label title="Show functions, classes and modules"><input type="checkbox" id="showHidden"> functions/modules</label>
+  <button id="btnLayout" class="icon" title="Toggle layout (side by side / stacked)">⬓</button>
+  <button id="btnTheme" class="icon" title="Light/dark theme">◐</button>
+  <button id="btnRefresh" class="icon" title="Refresh">⟳</button>
 </header>
 
 <div id="main">
   <section id="wsPane" aria-label="Workspace">
     <div id="wsTools">
-      <input type="search" id="filter" placeholder="Filtrar variables…" aria-label="Filtrar variables">
-      <button id="btnCols" title="Elegir columnas (como el clic derecho en la cabecera de MATLAB)">Columnas ▾</button>
+      <input type="search" id="filter" placeholder="Filter variables…" aria-label="Filter variables">
+      <button id="btnCols" title="Choose columns (like right-clicking the MATLAB header)">Columns ▾</button>
     </div>
     <div id="wsScroll"></div>
   </section>
   <div id="splitter" role="separator" aria-orientation="vertical" tabindex="0"></div>
-  <section id="viewPane" aria-label="Visores de objetos">
+  <section id="viewPane" aria-label="Object viewers">
     <div id="tabs" role="tablist"></div>
     <div id="viewBody">
-      <div id="placeholder">Haz <kbd>doble clic</kbd> en una variable para abrirla.<br>Puedes tener varias abiertas a la vez en pestañas.</div>
+      <div id="placeholder">Double-click a variable to open it.<br>You can keep several open at once, in tabs.</div>
     </div>
   </section>
 </div>

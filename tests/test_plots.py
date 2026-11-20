@@ -7,7 +7,7 @@ from workspacepy import plots
 
 
 def strict(d):
-    return json.dumps(d, allow_nan=False)  # falla si queda algún NaN/Inf
+    return json.dumps(d, allow_nan=False)  # fails if any NaN/Inf is left
 
 
 def test_line_decimation_keeps_extremes():
@@ -27,7 +27,7 @@ def test_non_finite_become_none():
 
 def test_complex_gives_re_and_im_series():
     d = plots.line_data(np.array([1 + 1j, 2 - 1j]))
-    assert [s["name"] for s in d["series"]] == ["valor (Re)", "valor (Im)"]
+    assert [s["name"] for s in d["series"]] == ["value (Re)", "value (Im)"]
 
 
 def test_hist_integers_one_bin_per_value():

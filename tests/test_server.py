@@ -101,3 +101,50 @@ def test_nan_and_inf_produce_valid_json(env):
 def test_workspace_error_on_missing_variable():
     with pytest.raises(WorkspaceError):
         Workspace({}).describe(["x"])
+
+
+def test_open_queue_relays_requests_between_pages(env):
+    ns, ws, srv = env
+    assert call(srv, "/api/version")[1]["open_seq"] == 0
+    assert call(srv, "/api/open", data={"path": ["A"]})[1]["seq"] == 1
+    assert call(srv, "/api/open", data={"path": ["lst", "[1]"]})[0] == 200
+    queue = call(srv, "/api/open_queue?after=1")[1]
+    assert queue["seq"] == 2 and [r["path"] for r in queue["requests"]] == [["lst", "[1]"]]
+    assert call(srv, "/api/open", data={"path": ["missing"]})[0] == 400  # stale clicks fail loudly
+    call(srv, "/api/close", data={"path": ["A"]})
+    assert [r["path"] for r in call(srv, "/api/open_queue?after=0")[1]["requests"]] == [["lst", "[1]"]]
+
+
+def test_info_route_reports_library_version(env):
+    import workspacepy
+
+    _, _, srv = env
+    assert call(srv, "/api/info")[1] == {"name": "workspacepy", "version": workspacepy.__version__}
+
+
+def test_stats_can_be_skipped_for_speed(env):
+    _, _, srv = env
+    rows = {v["name"]: v for v in call(srv, "/api/variables?stats=0")[1]["variables"]}
+    assert "stats" not in rows["A"]
+    rows = {v["name"]: v for v in call(srv, "/api/variables")[1]["variables"]}
+    assert rows["A"]["stats"]["max"] == 11
+
+
+def test_origin_must_be_loopback(env):
+    _, _, srv = env
+    url = f"http://127.0.0.1:{srv.port}/api/version?token={srv.token}"
+    for origin, expected in (("http://evil.example.com", 403), ("http://localhost:1234", 200)):
+        req = urllib.request.Request(url, headers={"Origin": origin})
+        try:
+            code = urllib.request.urlopen(req).status
+        except urllib.error.HTTPError as e:
+            code = e.code
+        assert code == expected
+
+
+def test_extra_allowed_hosts_via_environment(env, monkeypatch):
+    _, _, srv = env
+    assert call(srv, "/api/version", host="proxy.example.com")[0] == 403
+    monkeypatch.setenv("WORKSPACEPY_ALLOWED_HOSTS", "proxy.example.com")
+    assert call(srv, "/api/version", host="proxy.example.com")[0] == 200
+    assert call(srv, "/api/version", host="evil.example.com")[0] == 403

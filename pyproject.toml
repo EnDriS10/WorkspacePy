@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "workspacepy"
-version = "0.1.0"
-description = "Un workspace estilo MATLAB para Jupyter/VS Code: tabla de variables, estadísticas y visores de arrays, SciPy, SymPy y pandas."
+version = "0.2.0"
+description = "A MATLAB-style workspace for Jupyter and VS Code: live variable table, statistics, array editor and plots for NumPy, SciPy, SymPy and pandas."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }

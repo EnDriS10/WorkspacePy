@@ -1,5 +1,5 @@
-/* Rejilla de datos virtualizada y editable (estilo hoja de cálculo / Variable Editor de MATLAB).
- * Solo pide al kernel la ventana visible; soporta miles de millones de celdas porque nunca las renderiza. */
+/* Virtualized, editable data grid (spreadsheet style / MATLAB Variable Editor).
+ * It only asks the kernel for the visible window; it handles billions of cells because it never renders them. */
 "use strict";
 
 class DataGrid {
@@ -38,7 +38,7 @@ class DataGrid {
     new ResizeObserver(() => this._schedule()).observe(this.el);
   }
 
-  /* ---------------------------------------------------------------- carga */
+  /* ---------------------------------------------------------------- loading */
   setIndex(idx) { this.index = idx.slice(); this.win = null; this.reload(); }
 
   async reload() { await this._fetch(true); }
@@ -61,7 +61,7 @@ class DataGrid {
     const w = this._wanted(), cur = this.win;
     if (!force && cur && w.r0 >= cur.r0 && w.r1 <= cur.r1 && w.c0 >= cur.c0 && w.c1 <= cur.c1) { this._render(); return; }
     const seq = ++this._seq;
-    // centrar un poco la ventana pedida para no refetch en cada fila
+    // pad the requested window a little to avoid refetching on every row
     const r0 = Math.max(0, w.r0 - 20), c0 = Math.max(0, w.c0 - 4);
     try {
       const win = await Api.window(this.path, r0, Math.max(w.r1 + 20, r0 + 1), c0, Math.max(w.c1 + 6, c0 + 1), this.index, this.digits);
@@ -86,7 +86,7 @@ class DataGrid {
     this.rowHeadW = Math.max(44, Math.min(160, lm * 8 + 18));
   }
 
-  /* ---------------------------------------------------------------- dibujo */
+  /* ---------------------------------------------------------------- drawing */
   _render() {
     const w = this.win;
     if (!w) return;
@@ -118,7 +118,7 @@ class DataGrid {
     this.cells.innerHTML = cl.join("");
   }
 
-  /* ---------------------------------------------------------------- interacción */
+  /* ---------------------------------------------------------------- interaction */
   _cellOf(e) {
     const t = e.target.closest(".g-c");
     return t ? { r: +t.dataset.r, c: +t.dataset.c } : null;
@@ -160,14 +160,14 @@ class DataGrid {
     return w.cells[r - w.r0][c - w.c0];
   }
 
-  /* ---------------------------------------------------------------- edición */
+  /* ---------------------------------------------------------------- editing */
   _edit(initial) {
-    if (!this.editable) { this._flash("este objeto es de solo lectura", true); return; }
+    if (!this.editable) { this._flash("this object is read-only", true); return; }
     const text = this._cellText(this.cur.r, this.cur.c);
     if (text === null) return;
     const node = this.cells.querySelector(`[data-r="${this.cur.r}"][data-c="${this.cur.c}"]`);
     if (!node) return;
-    const input = el("input", { type: "text", class: "g-input", value: initial !== undefined ? initial : text, "aria-label": "valor de la celda" });
+    const input = el("input", { type: "text", class: "g-input", value: initial !== undefined ? initial : text, "aria-label": "cell value" });
     node.textContent = ""; node.classList.add("editing"); node.append(input);
     this.input = input; input.focus();
     if (initial === undefined) input.select(); else input.setSelectionRange(input.value.length, input.value.length);

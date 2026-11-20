@@ -1,4 +1,4 @@
-/* Gráficas en <canvas> sin dependencias: línea, histograma, barras e imagen (mapa de color). */
+/* Dependency-free <canvas> plots: line, histogram, bars and image (color map). */
 "use strict";
 
 const Plots = (() => {
@@ -82,15 +82,15 @@ const Plots = (() => {
     });
     g.restore();
     legend(g, w, d.series.map((s) => s.name), f.m);
-    if (d.truncated_series) note(g, w, h, "se muestran solo las primeras columnas");
+    if (d.truncated_series) note(g, w, h, "only the first columns are shown");
   }
 
   function hist(canvas, d) {
     const { g, w, h } = setup(canvas);
-    if (!d.counts.length) return note(g, w, h, "sin datos finitos");
+    if (!d.counts.length) return note(g, w, h, "no finite data");
     const xr = niceTicks(d.edges[0], d.edges[d.edges.length - 1]), yr = niceTicks(0, Math.max(...d.counts));
     yr.a = 0;
-    const f = frame(g, w, h, xr, yr, "valor");
+    const f = frame(g, w, h, xr, yr, "value");
     g.fillStyle = SERIES[0]; g.strokeStyle = css("--panel");
     d.counts.forEach((c, i) => {
       const x0 = f.X(d.edges[i]), x1 = f.X(d.edges[i + 1]), y = f.Y(c);
@@ -104,7 +104,7 @@ const Plots = (() => {
     const [lo, hi] = extent(d.series.map((s) => s.y)), n = d.labels.length, k = d.series.length;
     const yr = niceTicks(Math.min(0, lo), Math.max(0, hi)), xr = { a: -0.5, b: n - 0.5, ticks: [] };
     const step = Math.max(1, Math.ceil(n / 12)); for (let i = 0; i < n; i += step) xr.ticks.push(i);
-    const f = frame(g, w, h, xr, yr, "índice");
+    const f = frame(g, w, h, xr, yr, "index");
     const bw = (f.pw / n) * 0.8 / k, y0 = f.Y(0);
     d.series.forEach((s, j) => {
       g.fillStyle = SERIES[j % SERIES.length];
@@ -115,10 +115,10 @@ const Plots = (() => {
       });
     });
     legend(g, w, d.series.map((s) => s.name), f.m);
-    if (d.truncated) note(g, w, h, "gráfica recortada (primeras filas/columnas)");
+    if (d.truncated) note(g, w, h, "plot truncated (first rows/columns)");
   }
 
-  /* mapa de color tipo viridis (interpolación entre paradas) */
+  /* viridis-like color map (interpolation between stops) */
   const STOPS = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];
   function colormap(t) {
     t = Math.max(0, Math.min(1, t)) * (STOPS.length - 1);
@@ -146,7 +146,7 @@ const Plots = (() => {
     g.fillStyle = css("--muted"); g.textAlign = "left"; g.textBaseline = "middle";
     g.fillText(tickLabel(d.vmax), bx + bar + 4, pad.t + 6);
     g.fillText(tickLabel(d.vmin), bx + bar + 4, pad.t + ih - 6);
-    if (d.step[0] > 1 || d.step[1] > 1) note(g, w, h, `submuestreado ${d.step[0]}×${d.step[1]}`);
+    if (d.step[0] > 1 || d.step[1] > 1) note(g, w, h, `subsampled ${d.step[0]}×${d.step[1]}`);
   }
 
   function note(g, w, h, text) {

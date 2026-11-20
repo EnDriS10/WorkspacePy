@@ -1,6 +1,9 @@
-# Extensión de VS Code para WorkspacePy
+# WorkspacePy for VS Code
 
-Abre el workspace en una columna al lado de tu notebook. Es opcional: sin ella,
-`workspacepy.start()` imprime una URL que puedes abrir en el Simple Browser o en tu navegador.
+A MATLAB-style workspace for Jupyter notebooks:
 
-Instalación: ver la sección «Extensión de VS Code» del README principal.
+* **Workspace** view (side bar, drag it to the right): your variables, live.
+* **Variable Viewer** (bottom panel): opens when you double-click a variable; tabs stay open.
+
+Needs the Python library: `pip install workspacepy`, then `workspacepy.start()` in a notebook.
+See the main README for the full guide.

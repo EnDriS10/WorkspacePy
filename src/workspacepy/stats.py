@@ -1,4 +1,4 @@
-"""Estadísticas tipo MATLAB (min, max, range, mean, median, mode, var, std, ...)."""
+"""MATLAB-style statistics (min, max, range, mean, median, mode, var, std, ...)."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ from typing import Any, Optional
 
 from .util import np
 
-#: Estadísticas disponibles como columnas del workspace (en este orden).
+#: Statistics available as workspace columns (in this order).
 STAT_NAMES = ("min", "max", "range", "mean", "median", "mode", "var", "std", "sum", "nnz", "nans")
 
-#: Por encima de este número de elementos no se calculan estadísticas.
+#: Above this number of elements no statistics are computed.
 MAX_STATS_ELEMENTS = 5_000_000
-#: La moda exige ordenar; por encima de este tamaño se omite.
+#: The mode requires sorting; above this size it is skipped.
 MAX_MODE_ELEMENTS = 1_000_000
-#: Máximo de elementos de una lista/tupla que se intenta convertir a array.
+#: Maximum number of elements of a list/tuple that is converted to an array.
 MAX_SEQUENCE_ELEMENTS = 1_000_000
 
 
@@ -23,7 +23,7 @@ def _py(x: Any) -> Any:
 
 
 def as_numeric_array(obj: Any) -> Optional["np.ndarray"]:
-    """Intenta ver `obj` como array numérico (bool/int/uint/float/complex). Si no, devuelve None."""
+    """Try to view `obj` as a numeric array (bool/int/uint/float/complex). Otherwise return None."""
     if np is None:
         return None
     arr = None
@@ -51,11 +51,11 @@ def as_numeric_array(obj: Any) -> Optional["np.ndarray"]:
 
 
 def compute_stats(arr: Optional["np.ndarray"]) -> dict:
-    """Estadísticas de un array numérico. Convención como MATLAB: var/std con N-1.
+    """Statistics of a numeric array. MATLAB convention: var/std with N-1.
 
-    Para arrays complejos se calculan sobre el módulo |z|. Los NaN se ignoran
-    (y se cuentan en `nans`). Devuelve un dict con todas las claves de STAT_NAMES
-    (valor None cuando no se puede calcular).
+    For complex arrays they are computed on the modulus |z|. NaNs are ignored
+    (and counted in `nans`). Returns a dict with every key of STAT_NAMES
+    (None when it cannot be computed).
     """
     with np.errstate(all="ignore") if np is not None else _nullcontext():
         return _compute(arr)
@@ -81,7 +81,7 @@ def _compute(arr: Optional["np.ndarray"]) -> dict:
         return out
     mn, mx = _py(valid.min()), _py(valid.max())
     out["min"], out["max"] = mn, mx
-    out["range"] = mx - mn  # con ints de Python: sin desbordamiento
+    out["range"] = mx - mn  # with Python ints: no overflow
     out["mean"] = float(np.mean(valid, dtype=np.float64))
     out["median"] = float(np.median(valid))
     ddof = 1 if valid.size > 1 else 0
@@ -90,5 +90,5 @@ def _compute(arr: Optional["np.ndarray"]) -> dict:
     out["sum"] = _py(valid.sum())
     if valid.size <= MAX_MODE_ELEMENTS:
         vals, counts = np.unique(valid, return_counts=True)
-        out["mode"] = _py(vals[int(np.argmax(counts))])  # empate: el menor, como MATLAB
+        out["mode"] = _py(vals[int(np.argmax(counts))])  # tie: the smallest, like MATLAB
     return out

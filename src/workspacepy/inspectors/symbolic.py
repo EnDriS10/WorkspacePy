@@ -1,4 +1,4 @@
-"""Inspector de SymPy: expresiones, símbolos, ecuaciones y matrices simbólicas."""
+"""SymPy inspector: expressions, symbols, equations and symbolic matrices."""
 
 from __future__ import annotations
 
@@ -42,10 +42,10 @@ class SympyMatrixInspector(Inspector):
 
     def properties(self) -> List[Tuple[str, str]]:
         m = self.obj
-        props = [("shape", str(tuple(m.shape))), ("símbolos libres", ", ".join(sorted(str(s) for s in m.free_symbols)) or "—")]
+        props = [("shape", str(tuple(m.shape))), ("free symbols", ", ".join(sorted(str(s) for s in m.free_symbols)) or "—")]
         if len(m.shape) == 2 and m.shape[0] == m.shape[1] and m.shape[0] <= 8 and hasattr(m, "is_symmetric"):
             try:
-                props.append(("simétrica", str(m.is_symmetric())))
+                props.append(("symmetric", str(m.is_symmetric())))
             except Exception:
                 pass
         return props
@@ -96,9 +96,9 @@ class SympyExprInspector(Inspector):
 
     def properties(self) -> List[Tuple[str, str]]:
         e = self.obj
-        props = [("clase", type(e).__name__), ("símbolos libres", ", ".join(sorted(str(s) for s in e.free_symbols)) or "—")]
-        for name, label in (("is_number", "es número"), ("is_real", "real"), ("is_integer", "entero"),
-                            ("is_positive", "positivo"), ("is_polynomial", None)):
+        props = [("class", type(e).__name__), ("free symbols", ", ".join(sorted(str(s) for s in e.free_symbols)) or "—")]
+        for name, label in (("is_number", "is number"), ("is_real", "real"), ("is_integer", "integer"),
+                            ("is_positive", "positive"), ("is_polynomial", None)):
             if label is None:
                 continue
             try:
@@ -107,7 +107,7 @@ class SympyExprInspector(Inspector):
             except Exception:
                 pass
         try:
-            props.append(("nº de operaciones", str(e.count_ops())))
+            props.append(("operation count", str(e.count_ops())))
         except Exception:
             pass
         return props

@@ -1,4 +1,4 @@
-"""Utilidades pequeñas compartidas: formato de números, repr seguro, JSON seguro, tamaño en bytes."""
+"""Small shared helpers: number formatting, safe repr, safe JSON, size in bytes."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import reprlib
 import sys
 from typing import Any
 
-try:  # numpy es opcional
+try:  # numpy is optional
     import numpy as np
 except ImportError:  # pragma: no cover
     np = None
@@ -19,12 +19,12 @@ _BOOL_TYPES: tuple = (bool,) + ((np.bool_,) if np is not None else ())
 
 
 def get_module(name: str):
-    """Devuelve un módulo solo si ya está importado (así no cargamos scipy/sympy/pandas a lo tonto)."""
+    """Return a module only if it is already imported (so scipy/sympy/pandas are never loaded needlessly)."""
     return sys.modules.get(name)
 
 
 def format_scalar(x: Any, digits: int = 6) -> str:
-    """Formatea un escalar de Python/NumPy para mostrarlo en una celda."""
+    """Format a Python/NumPy scalar for display in a cell."""
     if isinstance(x, _BOOL_TYPES):
         return "True" if bool(x) else "False"
     if isinstance(x, _INT_TYPES):
@@ -58,7 +58,7 @@ _repr.maxlevel = 2
 
 
 def short_repr(obj: Any, maxlen: int = 80) -> str:
-    """repr acotado y que nunca lanza excepciones."""
+    """Bounded repr that never raises."""
     try:
         text = _repr.repr(obj)
     except Exception:
@@ -66,14 +66,14 @@ def short_repr(obj: Any, maxlen: int = 80) -> str:
             text = f"<{type(obj).__name__}>"
         except Exception:  # pragma: no cover
             text = "<?>"
-    text = " ".join(text.split())  # una sola línea
+    text = " ".join(text.split())  # single line
     if len(text) > maxlen:
         text = text[: maxlen - 1] + "…"
     return text
 
 
 def deep_sizeof(obj: Any, limit: int = 20000) -> int:
-    """Tamaño en bytes. Para contenedores suma sus elementos (con tope para no tardar)."""
+    """Size in bytes. For containers it sums their elements (capped to stay fast)."""
     seen: set[int] = set()
     budget = [limit]
 
@@ -104,7 +104,7 @@ def deep_sizeof(obj: Any, limit: int = 20000) -> int:
 
 
 def jsonable(obj: Any) -> Any:
-    """Convierte a algo serializable en JSON estricto (NaN/Inf pasan a texto)."""
+    """Convert to something serializable as strict JSON (NaN/Inf become text)."""
     if obj is None or isinstance(obj, (str, bool)):
         return obj
     if isinstance(obj, _BOOL_TYPES):

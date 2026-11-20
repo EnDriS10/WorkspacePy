@@ -1,4 +1,4 @@
-/* Aplicación: tabla del workspace, pestañas de objetos abiertos, sondeo de cambios, disposición y temas. */
+/* Application: workspace table, open-object tabs, change polling, layout and themes. */
 "use strict";
 
 const ALL_COLS = [
@@ -6,13 +6,16 @@ const ALL_COLS = [
   ["min", "Min"], ["max", "Max"], ["range", "Range"], ["mean", "Mean"], ["median", "Median"], ["mode", "Mode"],
   ["std", "Std"], ["var", "Var"], ["sum", "Sum"], ["nnz", "Nnz"], ["nans", "NaN"],
 ];
-const DEFAULT_COLS = ["name", "value", "size", "bytes", "class", "min", "max", "range", "mean", "median", "mode", "std"];
+// Page mode: "full" (standalone: workspace + viewer), "workspace" (only the variable table) or
+// "viewer" (only the object tabs). The VS Code extension shows the last two in separate panels.
+const MODE = new URLSearchParams(location.search).get("mode") || "full";
+const DEFAULT_COLS = ["name", "value", "size", "class"];
 const STAT_COLS = new Set(["min", "max", "range", "mean", "median", "mode", "std", "var", "sum", "nnz", "nans"]);
 const KIND_ICON = { array: "#", table: "⊞", sympy: "∑", container: "{}", scalar: "·", callable: "ƒ", object: "◇" };
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem("workspacepy." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem("workspacepy." + k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } },
+  set(k, v) { try { localStorage.setItem("workspacepy." + k, JSON.stringify(v)); } catch (e) { /* no storage available */ } },
 };
 
 class App {
@@ -20,17 +23,23 @@ class App {
     this.vars = [];
     this.version = -1;
     this.sort = store.get("sort", { key: "name", dir: 1 });
-    this.cols = new Set(store.get("cols", DEFAULT_COLS));
+    this.cols = new Set(store.get("cols2", DEFAULT_COLS));
     this.selected = null;
     this.tabs = new Map();       // pathKey -> {path, viewer, tabEl, dirty}
     this.activeKey = null;
     this.hidden = false;
     this.offline = false;
     this.$ = (id) => document.getElementById(id);
+    this.openSeq = 0;
+    this._hostTheme = null;
+    document.body.dataset.mode = MODE;
     this._initChrome();
     const solo = location.hash.startsWith("#open=");
     if (solo) document.body.classList.add("solo");
-    this.refreshAll().then(() => { if (solo) this.open(JSON.parse(decodeURIComponent(location.hash.slice(6)))); });
+    this.refreshAll().then(() => {
+      if (solo) this._openLocal(JSON.parse(decodeURIComponent(location.hash.slice(6))));
+      if (MODE === "viewer") this._syncOpenRequests();
+    });
     setInterval(() => this._poll(), 700);
   }
 
@@ -45,6 +54,11 @@ class App {
     this._setLayout(store.get("vertical", innerWidth < 900 || innerHeight > innerWidth));
     this._applyTheme(store.get("theme", "auto"));
     this._initSplitter();
+    window.addEventListener("message", (e) => {          // theme pushed by the VS Code wrapper
+      if (e.source !== window.parent || !e.data || e.data.workspacepy !== "theme") return;
+      this._hostTheme = e.data.theme === "dark" ? "dark" : "light";
+      this._applyTheme(this._theme);
+    });
     document.addEventListener("click", () => { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); } });
   }
@@ -58,8 +72,9 @@ class App {
   }
 
   _applyTheme(t) {
-    if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
     this._theme = t; store.set("theme", t);
+    const eff = t === "auto" ? this._hostTheme : t;
+    if (!eff) document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", eff);
     for (const tab of this.tabs.values()) tab.viewer.show(tab.viewer.active, true);
   }
   _cycleTheme() { this._applyTheme({ auto: "light", light: "dark", dark: "auto" }[this._theme]); }
@@ -85,9 +100,10 @@ class App {
   async _poll() {
     if (document.hidden) return;
     try {
-      const { version } = await Api.version();
+      const { version, open_seq } = await Api.version();
       this._setOnline(true);
       if (version !== this.version) await this.refreshAll();
+      if (MODE === "viewer" && open_seq !== this.openSeq) await this._syncOpenRequests();
     } catch (e) { this._setOnline(false); }
   }
 
@@ -95,12 +111,12 @@ class App {
     this.offline = !ok;
     const s = this.$("status");
     s.classList.toggle("off", !ok);
-    s.textContent = ok ? "conectado" : "sin conexión con el kernel";
+    s.textContent = ok ? "connected" : "no connection to the kernel";
   }
 
   async refreshAll() {
     try {
-      const r = await Api.variables(this.hidden);
+      const r = await Api.variables(this.hidden, this._needsStats());
       this.vars = r.variables; this.version = r.version;
       this._setOnline(true);
       this.renderTable();
@@ -139,11 +155,11 @@ class App {
     });
     const host = this.$("wsScroll"), top = host.scrollTop;
     if (!rows.length) {
-      host.replaceChildren(el("div", { id: "wsEmpty", text: this.vars.length ? "Ninguna variable coincide con el filtro." : "El workspace está vacío. Crea variables en el notebook." }));
+      host.replaceChildren(el("div", { id: "wsEmpty", text: this.vars.length ? "No variable matches the filter." : "The workspace is empty. Create variables in your notebook." }));
       return;
     }
     const thead = el("thead", {}, el("tr", {}, cols.map(([k, label]) => {
-      const th = el("th", { title: "Clic: ordenar · clic derecho: columnas" }, label, this.sort.key === k ? el("span", { class: "arrow", text: this.sort.dir > 0 ? "▲" : "▼" }) : null);
+      const th = el("th", { title: "Click: sort · right click: columns" }, label, this.sort.key === k ? el("span", { class: "arrow", text: this.sort.dir > 0 ? "▲" : "▼" }) : null);
       th.onclick = () => { this.sort = { key: k, dir: this.sort.key === k ? -this.sort.dir : 1 }; store.set("sort", this.sort); this.renderTable(); };
       th.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); this._colMenu(e.clientX, e.clientY); };
       return th;
@@ -181,7 +197,7 @@ class App {
     const m = this.$("colMenu");
     m.replaceChildren(...ALL_COLS.map(([k, label]) => {
       const cb = el("input", { type: "checkbox" }); cb.checked = this.cols.has(k); cb.disabled = k === "name";
-      cb.onchange = () => { cb.checked ? this.cols.add(k) : this.cols.delete(k); store.set("cols", [...this.cols]); this.renderTable(); };
+      cb.onchange = () => { cb.checked ? this.cols.add(k) : this.cols.delete(k); store.set("cols2", [...this.cols]); this.renderTable(); };
       return el("label", { onclick: (e) => e.stopPropagation() }, cb, label);
     }));
     if (anchor) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; }
@@ -190,19 +206,36 @@ class App {
   _ctxMenu(x, y, v) {
     const m = this.$("ctxMenu");
     m.replaceChildren(
-      el("button", { onclick: () => this.open([v.name]) }, "Abrir"),
-      el("button", { onclick: () => this.popOut([v.name]) }, "Abrir en ventana aparte"),
-      el("button", { onclick: () => navigator.clipboard && navigator.clipboard.writeText(v.name).catch(() => {}) }, "Copiar nombre"),
-      el("button", { class: "danger", onclick: () => this._delete(v.name) }, "Borrar variable"));
+      el("button", { onclick: () => this.open([v.name]) }, "Open"),
+      el("button", { onclick: () => this.popOut([v.name]) }, "Open in separate window"),
+      el("button", { onclick: () => navigator.clipboard && navigator.clipboard.writeText(v.name).catch(() => {}) }, "Copy name"),
+      el("button", { class: "danger", onclick: () => this._delete(v.name) }, "Delete variable"));
     this._menuAt(m, x, y);
   }
   async _delete(name) {
-    if (!confirm(`¿Borrar la variable «${name}» del kernel?`)) return;
+    if (!confirm(`Delete variable “${name}” from the kernel?`)) return;
     try { await Api.del(name); await this.refreshAll(); } catch (e) { alert(e.message); }
   }
 
-  /* ---------------------------------------------------------------- pestañas de objetos */
+  /* ---------------------------------------------------------------- object tabs */
+  /* Open an object. In "workspace" mode the viewer lives in another panel/page, so ask the kernel
+   * to relay the request (and tell the host, which reveals the viewer panel). */
   async open(path) {
+    if (MODE !== "workspace") return this._openLocal(path);
+    try { await Api.requestOpen(path); } catch (e) { alert(e.message); return; }
+    try { window.parent.postMessage({ workspacepy: "open", path }, "*"); } catch (e) { /* not embedded */ }
+  }
+
+  _needsStats() { return [...this.cols].some((k) => STAT_COLS.has(k)); }
+
+  async _syncOpenRequests() {
+    let r;
+    try { r = await Api.openQueue(this.openSeq); } catch (e) { return; }
+    this.openSeq = r.seq;
+    for (const req of r.requests) await this._openLocal(req.path);
+  }
+
+  async _openLocal(path) {
     const key = pathKey(path);
     let tab = this.tabs.get(key);
     if (!tab) {
@@ -210,7 +243,7 @@ class App {
       const label = path.length === 1 ? path[0] : path[0] + path.slice(1).map((p) => (p.startsWith("[") ? p : p.startsWith("'") ? "[" + p + "]" : "." + p)).join("");
       const tabEl = el("div", { class: "tab", role: "tab", title: path.join(" › ") },
         el("span", { text: label }),
-        el("button", { class: "x", title: "Cerrar", "aria-label": "Cerrar pestaña", onclick: (e) => { e.stopPropagation(); this.close(key); } }, "×"));
+        el("button", { class: "x", title: "Close", "aria-label": "Close tab", onclick: (e) => { e.stopPropagation(); this.close(key); } }, "×"));
       tabEl.onclick = () => this.activate(key);
       tabEl.onauxclick = (e) => { if (e.button === 1) this.close(key); };
       this.$("tabs").append(tabEl);
@@ -236,6 +269,7 @@ class App {
   close(key) {
     const tab = this.tabs.get(key);
     if (!tab) return;
+    if (MODE === "viewer") Api.closeOpen(tab.path).catch(() => {});
     tab.tabEl.remove(); tab.viewer.el.remove(); this.tabs.delete(key);
     if (this.activeKey === key) {
       const keys = [...this.tabs.keys()];

@@ -109,7 +109,7 @@ def test_object_fallback_never_crashes():
             raise RuntimeError("no")
 
     i = inspector_for(Weird())
-    assert i.preview().startswith("<")  # short_repr atrapa la excepción
+    assert i.preview().startswith("<")  # short_repr swallows the exception
 
 
 @pytest.mark.parametrize("text,kind,expected", [("3", "i", 3), ("3.0", "i", 3), ("2,5", "f", 2.5),

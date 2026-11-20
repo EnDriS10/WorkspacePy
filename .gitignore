@@ -8,5 +8,4 @@ dist/
 .venv/
 venv/
 node_modules/
-*.vsix
 .DS_Store

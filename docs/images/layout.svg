@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 540" width="920" height="540" role="img" aria-label="MATLAB-style layout in VS Code: code in the center, Workspace on the right, Variable Viewer below the code">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10141b"/><stop offset="1" stop-color="#171c26"/></linearGradient>
+    <style>
+      .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;fill:#c8d1e0}
+      .m{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:11px;fill:#8b96a8;letter-spacing:.8px}
+      .h{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13px;font-weight:600;fill:#e3e8f0}
+      .k{fill:#ff7b72}.f{fill:#d2a8ff}.s{fill:#a5d6ff}.c{fill:#6e7a8c}
+      .tag{font-family:system-ui,sans-serif;font-size:13px;font-weight:700;fill:#0f1218}
+    </style>
+  </defs>
+  <rect width="920" height="540" rx="16" fill="url(#bg)"/>
+  <rect x="16" y="16" width="888" height="508" rx="10" fill="#14181f" stroke="#2b3240"/>
+  <!-- title bar -->
+  <circle cx="36" cy="34" r="5" fill="#ff5f56"/><circle cx="54" cy="34" r="5" fill="#ffbd2e"/><circle cx="72" cy="34" r="5" fill="#27c93f"/>
+  <text x="460" y="38" text-anchor="middle" class="m">analysis.ipynb — VS Code</text>
+  <!-- activity bar -->
+  <rect x="17" y="52" width="40" height="471" fill="#10141b"/>
+  <rect x="29" y="66" width="16" height="16" rx="3" fill="none" stroke="#5b9cff" stroke-width="1.6"/><path d="M29 71h16M35 71v11" stroke="#5b9cff" stroke-width="1.4"/>
+  <rect x="29" y="102" width="16" height="16" rx="3" fill="none" stroke="#4a5262" stroke-width="1.4"/>
+  <rect x="29" y="138" width="16" height="16" rx="3" fill="none" stroke="#4a5262" stroke-width="1.4"/>
+  <!-- editor (center) -->
+  <rect x="57" y="52" width="540" height="270" fill="#161b23"/>
+  <rect x="57" y="52" width="540" height="28" fill="#1b212b"/><text x="74" y="70" class="t">analysis.ipynb</text>
+  <g class="t">
+    <text x="78" y="106"><tspan class="k">import</tspan> numpy <tspan class="k">as</tspan> np, sympy <tspan class="k">as</tspan> sp</text>
+    <text x="78" y="126"><tspan class="k">import</tspan> workspacepy; workspacepy.<tspan class="f">start</tspan>()</text>
+    <text x="78" y="158">t = np.<tspan class="f">linspace</tspan>(0, 10, 2000)</text>
+    <text x="78" y="178">signal = np.<tspan class="f">exp</tspan>(-0.15*t) * np.<tspan class="f">sin</tspan>(7.5*t)</text>
+    <text x="78" y="198">x = sp.<tspan class="f">Symbol</tspan>(<tspan class="s">'x'</tspan>)</text>
+    <text x="78" y="218">f = sp.<tspan class="f">integrate</tspan>(sp.<tspan class="f">sin</tspan>(x)**2, x)</text>
+    <text x="78" y="250" class="c"># double-click a variable →</text>
+  </g>
+  <!-- right: workspace -->
+  <rect x="597" y="52" width="306" height="471" fill="#1b1f27" stroke="#2b3240"/>
+  <text x="613" y="74" class="m">WORKSPACE</text>
+  <rect x="597" y="88" width="306" height="22" fill="#232833"/>
+  <text x="613" y="103" class="m">NAME</text><text x="676" y="103" class="m">VALUE</text><text x="800" y="103" class="m">SIZE</text><text x="850" y="103" class="m">CLASS</text>
+  <g class="t">
+    <rect x="598" y="150" width="304" height="22" fill="#28406b"/>
+    <text x="613" y="125"><tspan fill="#5b9cff"># </tspan>A</text><text x="676" y="125">&lt;8×6 float64&gt;</text><text x="800" y="125">8×6</text><text x="850" y="125">ndarray</text>
+    <text x="613" y="147"><tspan fill="#5b9cff">∑ </tspan>f</text><text x="676" y="147">sin(x)…</text><text x="800" y="147">1×1</text><text x="850" y="147">Add</text>
+    <text x="613" y="167"><tspan fill="#5b9cff"># </tspan>signal</text><text x="676" y="167">&lt;2000 float64&gt;</text><text x="800" y="167">2000</text><text x="850" y="167">ndarray</text>
+    <text x="613" y="189"><tspan fill="#5b9cff"># </tspan>t</text><text x="676" y="189">&lt;2000 float64&gt;</text><text x="800" y="189">2000</text><text x="850" y="189">ndarray</text>
+  </g>
+  <!-- bottom: variable viewer (under the code only) -->
+  <rect x="57" y="322" width="540" height="201" fill="#1b1f27" stroke="#2b3240"/>
+  <rect x="57" y="322" width="540" height="26" fill="#232833"/>
+  <text x="73" y="339" class="m">VARIABLE VIEWER</text>
+  <rect x="190" y="326" width="70" height="22" rx="3" fill="#1b1f27"/><text x="202" y="341" class="t">signal ×</text>
+  <rect x="266" y="326" width="56" height="22" rx="3" fill="#1b1f27"/><text x="278" y="341" class="t">A ×</text>
+  <path d="M190 348h70" stroke="#5b9cff" stroke-width="2"/>
+  <path d="M82 440 C 120 396, 150 462, 190 418 S 250 392, 280 430 S 340 470, 380 416 S 440 388, 470 424" fill="none" stroke="#5b9cff" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M72 462h400M72 366v96" stroke="#2b3240"/>
+  <text x="500" y="372" class="m">Line · Histogram · Bars</text><text x="500" y="392" class="m">Data · Image · LaTeX</text>
+  <!-- numbered tags -->
+  <g>
+    <circle cx="82" cy="290" r="14" fill="#5b9cff"/><text x="82" y="295" text-anchor="middle" class="tag">1</text>
+    <circle cx="750" cy="260" r="14" fill="#5b9cff"/><text x="750" y="265" text-anchor="middle" class="tag">2</text>
+    <circle cx="82" cy="500" r="14" fill="#5b9cff"/><text x="82" y="505" text-anchor="middle" class="tag">3</text>
+  </g>
+  <g class="h"><text x="750" y="296" text-anchor="middle">Workspace</text></g>
+  <text x="750" y="314" text-anchor="middle" class="m">right side</text>
+  <text x="750" y="340" text-anchor="middle" class="m">all variables, live</text>
+  <text x="106" y="295" class="h">Your code</text><text x="190" y="295" class="m">stays in the middle</text>
+  <text x="106" y="505" class="h">Variable Viewer</text><text x="222" y="505" class="m">opens below your code when you double-click a variable</text>
+</svg>

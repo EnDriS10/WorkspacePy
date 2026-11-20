@@ -1,9 +1,10 @@
-"""API pública: start / open / show / stop, hook de IPython y registro para la extensión de VS Code."""
+"""Public API: start / open / show / stop, IPython hook and registry for the VS Code extension."""
 
 from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,16 +12,16 @@ from typing import Any, Dict, Optional
 from .server import WorkspaceServer
 from .workspace import Workspace
 
-#: Servidores activos, uno por espacio de nombres (id del dict).
+#: Active servers, one per namespace (keyed by the dict id).
 _ACTIVE: Dict[int, "Handle"] = {}
 
-#: La extensión de VS Code lee este archivo para saber a qué URL conectarse.
+#: The VS Code extension reads this file to know which URL to connect to.
 REGISTRY_DIR = Path(os.environ.get("WORKSPACEPY_HOME", Path.home() / ".workspacepy"))
 REGISTRY_FILE = REGISTRY_DIR / "active.json"
 
 
 class Handle:
-    """Lo que devuelve `start()`: agrupa workspace + servidor y ofrece open/show/stop."""
+    """What `start()` returns: groups workspace + server and offers open/show/stop."""
 
     def __init__(self, ws: Workspace, server: WorkspaceServer, ip=None):
         self.workspace = ws
@@ -33,7 +34,7 @@ class Handle:
         return self.server.url
 
     def open(self, browser: bool = True) -> str:
-        """Abre la interfaz en el navegador del sistema (si `browser`) y devuelve la URL."""
+        """Open the UI in the system browser (if `browser`) and return the URL."""
         if browser:
             import webbrowser
 
@@ -41,10 +42,14 @@ class Handle:
         return self.url
 
     def show(self, height: int = 600, width: str = "100%"):
-        """Incrusta la interfaz en la salida de la celda (JupyterLab / Jupyter clásico)."""
+        """Embed the UI in the cell output (JupyterLab / classic Jupyter)."""
         from IPython.display import IFrame
 
         return IFrame(self.url, width=width, height=height)
+
+    def instructions(self) -> str:
+        """The same short instructions that `start()` prints."""
+        return instructions(self.url)
 
     def refresh(self) -> None:
         self.workspace.bump()
@@ -60,13 +65,13 @@ class Handle:
         _ACTIVE.pop(id(self.workspace.ns), None)
 
     def __repr__(self) -> str:
-        state = "activo" if self.server.running else "parado"
+        state = "running" if self.server.running else "stopped"
         return f"<WorkspacePy {state}: {self.url}>"
 
     _repr_pretty_ = lambda self, p, cycle: p.text(repr(self))  # noqa: E731
 
 
-# ------------------------------------------------------------------------- registro para VS Code
+# ------------------------------------------------------------------------- registry for VS Code
 def _read_registry() -> dict:
     try:
         return json.loads(REGISTRY_FILE.read_text(encoding="utf-8"))
@@ -81,11 +86,11 @@ def _write_registry(data: dict) -> None:
         tmp.write_text(json.dumps(data), encoding="utf-8")
         os.replace(tmp, REGISTRY_FILE)
         try:
-            os.chmod(REGISTRY_FILE, 0o600)  # contiene el token
+            os.chmod(REGISTRY_FILE, 0o600)  # contains the token
         except OSError:
             pass
     except OSError:
-        pass  # el registro es opcional: sin él solo falla la autoapertura de VS Code
+        pass  # the registry is optional: without it only the VS Code auto-open stops working
 
 
 def _register(server: WorkspaceServer) -> None:
@@ -106,9 +111,22 @@ def _pid_alive(pid: int) -> bool:
         os.kill(int(pid), 0)
     except (OSError, ValueError):
         return False
-    except Exception:  # Windows puede lanzar otros errores
+    except Exception:  # Windows may raise other errors
         return True
     return True
+
+
+# ------------------------------------------------------------------------- user instructions
+def instructions(url: str) -> str:
+    """Short, copy-friendly instructions printed by `start()`."""
+    mod = "Cmd" if sys.platform == "darwin" else "Ctrl"
+    return (
+        "WorkspacePy is running.\n"
+        f"  VS Code : {mod}+Shift+P  ->  Simple Browser: Show  ->  paste the URL below\n"
+        "            (with the WorkspacePy extension installed, the panels open by themselves)\n"
+        "  Browser : ws.open()\n"
+        f"  URL     : {url}"
+    )
 
 
 # ------------------------------------------------------------------------- API
@@ -123,14 +141,14 @@ def _current_ipython():
 
 def start(namespace: Optional[dict] = None, *, port: int = 0, open_browser: bool = False,
           register: bool = True, quiet: bool = False) -> Handle:
-    """Arranca el workspace sobre `namespace` (por defecto, el del notebook actual).
+    """Start the workspace on `namespace` (by default, the current notebook's).
 
-    En un script sin IPython pasa `namespace=globals()`. Llamarlo dos veces devuelve el mismo handle.
+    In a script without IPython pass `namespace=globals()`. Calling it twice returns the same handle.
     """
     ip = _current_ipython()
     if namespace is None:
         if ip is None:
-            raise RuntimeError("fuera de IPython/Jupyter pasa el espacio de nombres: workspacepy.start(globals())")
+            raise RuntimeError("outside IPython/Jupyter pass the namespace: workspacepy.start(globals())")
         namespace = ip.user_ns
     existing = _ACTIVE.get(id(namespace))
     if existing is not None and existing.server.running:
@@ -153,27 +171,27 @@ def start(namespace: Optional[dict] = None, *, port: int = 0, open_browser: bool
     if open_browser:
         handle.open()
     if not quiet:
-        print(f"WorkspacePy activo → {handle.url}")
+        print(instructions(handle.url))
     return handle
 
 
 def stop() -> None:
-    """Para todos los servidores de este proceso."""
+    """Stop all servers of this process."""
     for handle in list(_ACTIVE.values()):
         handle.stop()
 
 
 def active() -> Optional[Handle]:
-    """Handle del workspace activo (si hay uno)."""
+    """Handle of the active workspace (if any)."""
     for handle in _ACTIVE.values():
         if handle.server.running:
             return handle
     return None
 
 
-# ------------------------------------------------------------------------- magia de IPython
+# ------------------------------------------------------------------------- IPython magic
 def load_ipython_extension(ipython) -> None:
-    """`%load_ext workspacepy` registra `%workspace [open|show|stop|url]` y lo arranca."""
+    """`%load_ext workspacepy` registers `%workspace [open|show|stop|url]` and starts it."""
     from IPython.core.magic import register_line_magic
 
     @register_line_magic("workspace")
@@ -187,7 +205,7 @@ def load_ipython_extension(ipython) -> None:
             handle.open()
         if arg == "show":
             return handle.show()
-        print(f"WorkspacePy → {handle.url}")
+        print(instructions(handle.url))
         return None
 
     start(ipython.user_ns)

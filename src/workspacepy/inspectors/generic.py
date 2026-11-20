@@ -1,4 +1,4 @@
-"""Inspectores de Python estándar: escalares, texto, contenedores, funciones/módulos y objetos."""
+"""Standard Python inspectors: scalars, text, containers, functions/modules and objects."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class ScalarInspector(Inspector):
 
     def properties(self):
         t = type(self.obj)
-        return [("tipo", f"{t.__module__}.{t.__qualname__}")]
+        return [("type", f"{t.__module__}.{t.__qualname__}")]
 
     def detail(self) -> dict:
         return {"value": "None" if self.obj is None else format_scalar(self.obj, 17), "editable": self.obj is not None}
@@ -68,7 +68,7 @@ class StringInspector(Inspector):
         return short_repr(self.obj)
 
     def properties(self):
-        return [("longitud", str(len(self.obj)))]
+        return [("length", str(len(self.obj)))]
 
     def detail(self) -> dict:
         text = self.obj if isinstance(self.obj, str) else repr(self.obj)
@@ -83,7 +83,7 @@ class StringInspector(Inspector):
 
 @register
 class SequenceInspector(Inspector):
-    """list, tuple, range, set, frozenset, deque... Las listas numéricas se ven también como tabla."""
+    """list, tuple, range, set, frozenset, deque... Numeric lists are also shown as a table."""
 
     kind = "container"
     priority = 50
@@ -124,11 +124,11 @@ class SequenceInspector(Inspector):
 
     def set_child(self, label: str, text: str) -> None:
         if not isinstance(self.obj, list):
-            raise ValueError("solo las listas se pueden editar (tuple/set son inmutables)")
+            raise ValueError("only lists can be edited (tuple/set are immutable)")
         self.obj[int(label.strip("[]"))] = parse_literal(text)
 
     def properties(self):
-        return [("longitud", str(len(self.obj))), ("editable", str(isinstance(self.obj, list)))]
+        return [("length", str(len(self.obj))), ("editable", str(isinstance(self.obj, list)))]
 
     def detail(self) -> dict:
         return {"editable": isinstance(self.obj, list)}
@@ -136,7 +136,7 @@ class SequenceInspector(Inspector):
     def numeric(self):
         return as_numeric_array(self.obj)
 
-    # lista numérica 1-d o 2-d (lista de listas) -> también se puede ver como tabla
+    # numeric 1-d or 2-d list (list of lists) -> can also be shown as a table
     def window(self, r0, r1, c0, c1, index, digits):
         arr = self.numeric()
         if arr is None or arr.ndim not in (1, 2):
@@ -144,7 +144,7 @@ class SequenceInspector(Inspector):
         a2 = arr.reshape(-1, 1) if arr.ndim == 1 else arr
         r0, r1, c0, c1 = clamp_window(a2.shape[0], a2.shape[1], r0, r1, c0, c1)
         return make_window(a2[r0:r1, c0:c1].tolist(), a2.shape[0], a2.shape[1], r0, c0, digits,
-                           col_labels=["valor"] if arr.ndim == 1 else None, editable=False, lead_shape=[], index=[])
+                           col_labels=["value"] if arr.ndim == 1 else None, editable=False, lead_shape=[], index=[])
 
 
 @register
@@ -162,7 +162,7 @@ class MappingInspector(Inspector):
         return (len(self.obj),)
 
     def size_label(self) -> str:
-        return f"{len(self.obj)} claves"
+        return f"{len(self.obj)} keys"
 
     def preview(self) -> str:
         return short_repr(self.obj)
@@ -181,7 +181,7 @@ class MappingInspector(Inspector):
 
     def set_child(self, label: str, text: str) -> None:
         if not isinstance(self.obj, dict):
-            raise ValueError("este mapping es de solo lectura")
+            raise ValueError("this mapping is read-only")
         for k in self.obj:
             if repr(k) == label:
                 self.obj[k] = parse_literal(text)
@@ -189,7 +189,7 @@ class MappingInspector(Inspector):
         raise KeyError(label)
 
     def properties(self):
-        return [("claves", str(len(self.obj)))]
+        return [("keys", str(len(self.obj)))]
 
     def detail(self) -> dict:
         return {"editable": isinstance(self.obj, dict)}
@@ -216,7 +216,7 @@ class CallableInspector(Inspector):
     def preview(self) -> str:
         o = self.obj
         if isinstance(o, types.ModuleType):
-            return f"<módulo {o.__name__}>"
+            return f"<module {o.__name__}>"
         try:
             return f"{getattr(o, '__name__', type(o).__name__)}{inspect.signature(o)}"
         except (TypeError, ValueError):
@@ -224,10 +224,10 @@ class CallableInspector(Inspector):
 
     def properties(self):
         o = self.obj
-        props = [("tipo", type(o).__name__)]
+        props = [("type", type(o).__name__)]
         mod = getattr(o, "__module__", None)
         if mod:
-            props.append(("módulo", str(mod)))
+            props.append(("module", str(mod)))
         return props
 
     def detail(self) -> dict:
@@ -248,7 +248,7 @@ class CallableInspector(Inspector):
 
 @register
 class ObjectInspector(Inspector):
-    """Último recurso: cualquier objeto. Muestra sus atributos públicos como hijos navegables."""
+    """Last resort: any object. Shows its public attributes as browsable children."""
 
     kind = "object"
     priority = -100
@@ -284,7 +284,7 @@ class ObjectInspector(Inspector):
 
     def properties(self):
         t = type(self.obj)
-        return [("tipo", f"{t.__module__}.{t.__qualname__}"), ("atributos públicos", str(len(self._attrs())))]
+        return [("type", f"{t.__module__}.{t.__qualname__}"), ("public attributes", str(len(self._attrs())))]
 
     def numeric(self):
         return None

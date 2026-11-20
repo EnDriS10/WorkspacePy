@@ -1,7 +1,7 @@
-"""Servidor HTTP local (solo 127.0.0.1) que expone un `Workspace` a la interfaz web.
+"""Local HTTP server (127.0.0.1 only) that exposes a `Workspace` to the web UI.
 
-Seguridad: el servidor escucha solo en loopback, exige un token aleatorio en cada petición
-a /api y valida la cabecera Host (anti DNS-rebinding) y Origin. Sin dependencias externas.
+Security: the server listens on loopback only, requires a random token on every request
+to /api and validates the Host header (anti DNS-rebinding) and Origin. No external dependencies.
 """
 
 from __future__ import annotations
@@ -21,8 +21,16 @@ STATIC_DIR = Path(__file__).parent / "static"
 MAX_BODY = 1_000_000
 
 
+def _allowed_hosts() -> set:
+    """Loopback names, plus any extra host names in $WORKSPACEPY_ALLOWED_HOSTS (comma separated)."""
+    import os
+
+    extra = {h.strip().lower() for h in os.environ.get("WORKSPACEPY_ALLOWED_HOSTS", "").split(",") if h.strip()}
+    return {"127.0.0.1", "localhost", "::1"} | extra
+
+
 class _QuietServer(ThreadingHTTPServer):
-    """Ignora desconexiones del navegador (pestaña cerrada, recarga) en vez de imprimir tracebacks."""
+    """Ignore browser disconnections (closed tab, reload) instead of printing tracebacks."""
 
     def handle_error(self, request, client_address):
         import sys
@@ -33,7 +41,7 @@ class _QuietServer(ThreadingHTTPServer):
 
 
 class WorkspaceServer:
-    """Arranca/para el servidor en un hilo demonio."""
+    """Start/stop the server in a daemon thread."""
 
     def __init__(self, workspace: Workspace, host: str = "127.0.0.1", port: int = 0):
         self.workspace = workspace
@@ -74,18 +82,20 @@ class WorkspaceServer:
             protocol_version = "HTTP/1.1"
             server_version = "workspacepy"
 
-            def log_message(self, *args):  # silencio: no ensuciar la salida del notebook
+            def log_message(self, *args):  # silent: do not pollute the notebook output
                 pass
 
-            # ---- utilidades
+            # ---- helpers
             def _host_ok(self) -> bool:
                 host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
-                if host not in ("127.0.0.1", "localhost", "::1"):
+                if host not in _allowed_hosts():
                     return False
                 origin = self.headers.get("Origin")
                 if origin:
                     o = urlparse(origin)
-                    return (o.hostname or "").lower() in ("127.0.0.1", "localhost", "::1") and o.port == server.port
+                    # Hostname only: when VS Code forwards ports (remote/WSL) the port can differ.
+                    # The random token is the real protection.
+                    return (o.hostname or "").lower() in _allowed_hosts()
                 return True
 
             def _token_ok(self, query) -> bool:
@@ -111,12 +121,12 @@ class WorkspaceServer:
             # ---- GET
             def do_GET(self):
                 if not self._host_ok():
-                    return self._error(403, "host no permitido")
+                    return self._error(403, "host not allowed")
                 url = urlparse(self.path)
                 query = parse_qs(url.query)
                 if url.path.startswith("/api/"):
                     if not self._token_ok(query):
-                        return self._error(401, "token inválido")
+                        return self._error(401, "invalid token")
                     return self._api("GET", url.path[5:], query, {})
                 return self._static(url.path, query)
 
@@ -124,11 +134,11 @@ class WorkspaceServer:
                 if path in ("/", ""):
                     path = "/index.html"
                     if not self._token_ok(query):
-                        return self._send(401, "Token inválido. Abre la URL que imprime ws.open().".encode(),
+                        return self._send(401, "Invalid token. Open the URL printed by workspacepy.start().".encode(),
                                           "text/plain; charset=utf-8")
                 target = (STATIC_DIR / path.lstrip("/")).resolve()
                 if STATIC_DIR.resolve() not in target.parents or not target.is_file():
-                    return self._error(404, "no encontrado")
+                    return self._error(404, "not found")
                 ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
                 if ctype.startswith("text/") or ctype in ("application/javascript",):
                     ctype += "; charset=utf-8"
@@ -137,27 +147,27 @@ class WorkspaceServer:
             # ---- POST
             def do_POST(self):
                 if not self._host_ok():
-                    return self._error(403, "host no permitido")
+                    return self._error(403, "host not allowed")
                 url = urlparse(self.path)
                 query = parse_qs(url.query)
                 if not url.path.startswith("/api/") or not self._token_ok(query):
-                    return self._error(401, "token inválido")
+                    return self._error(401, "invalid token")
                 try:
                     length = int(self.headers.get("Content-Length") or 0)
                 except ValueError:
-                    return self._error(400, "Content-Length inválido")
+                    return self._error(400, "invalid Content-Length")
                 if length > MAX_BODY:
-                    return self._error(413, "petición demasiado grande")
+                    return self._error(413, "request too large")
                 raw = self.rfile.read(length) if length else b"{}"
                 try:
                     body = json.loads(raw or b"{}")
                     if not isinstance(body, dict):
                         raise ValueError
                 except ValueError:
-                    return self._error(400, "JSON inválido")
+                    return self._error(400, "invalid JSON")
                 return self._api("POST", url.path[5:], query, body)
 
-            # ---- enrutado de la API
+            # ---- API routing
             def _api(self, method: str, route: str, query, body):
                 ws = server.workspace
 
@@ -170,7 +180,7 @@ class WorkspaceServer:
                         raw = (query.get("path") or [None])[0]
                         p = json.loads(raw) if raw else None
                     if not isinstance(p, list) or not p or not all(isinstance(s, str) for s in p):
-                        raise WorkspaceError("parámetro 'path' inválido")
+                        raise WorkspaceError("invalid 'path' parameter")
                     return p
 
                 def index_arg():
@@ -179,14 +189,24 @@ class WorkspaceServer:
                         raw = (query.get("index") or [None])[0]
                         idx = json.loads(raw) if raw else []
                     if not isinstance(idx, list) or not all(isinstance(i, int) for i in idx):
-                        raise WorkspaceError("parámetro 'index' inválido")
+                        raise WorkspaceError("invalid 'index' parameter")
                     return idx
 
                 try:
                     if method == "GET" and route == "version":
-                        return self._json(200, {"version": ws.version})
+                        return self._json(200, {"version": ws.version, "open_seq": ws.open_seq})
+                    if method == "GET" and route == "info":
+                        from . import __version__
+
+                        return self._json(200, {"name": "workspacepy", "version": __version__})
+                    if method == "GET" and route == "open_queue":
+                        return self._json(200, ws.open_requests(q("after", 0)))
+                    if method == "POST" and route == "close":
+                        return self._json(200, ws.close_request(path_arg()))
+                    if method == "POST" and route == "open":
+                        return self._json(200, ws.request_open(path_arg()))
                     if method == "GET" and route == "variables":
-                        return self._json(200, ws.list_variables(show_hidden=str(q("hidden", "0")) == "1"))
+                        return self._json(200, ws.list_variables(show_hidden=str(q("hidden", "0")) == "1", with_stats=str(q("stats", "1")) == "1"))
                     if method == "GET" and route == "describe":
                         return self._json(200, ws.describe(path_arg()))
                     if method == "GET" and route == "window":
@@ -202,12 +222,12 @@ class WorkspaceServer:
                         return self._json(200, ws.set_value(path_arg(), body["text"]))
                     if method == "POST" and route == "delete":
                         return self._json(200, ws.delete(path_arg()[0]))
-                    return self._error(404, f"ruta desconocida: {route}")
+                    return self._error(404, f"unknown route: {route}")
                 except WorkspaceError as exc:
                     return self._error(400, str(exc))
                 except (KeyError, ValueError, TypeError, json.JSONDecodeError) as exc:
-                    return self._error(400, f"petición inválida: {exc}")
-                except Exception as exc:  # no tumbar el hilo por un objeto raro
+                    return self._error(400, f"invalid request: {exc}")
+                except Exception as exc:  # do not kill the thread because of a weird object
                     return self._error(500, f"{type(exc).__name__}: {exc}")
 
         return Handler

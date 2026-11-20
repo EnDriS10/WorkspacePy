@@ -1,8 +1,8 @@
 {
   "name": "workspacepy",
   "displayName": "WorkspacePy",
-  "description": "Abre el workspace estilo MATLAB de WorkspacePy al lado de tu notebook (Simple Browser).",
-  "version": "0.1.0",
+  "description": "MATLAB-style workspace for Jupyter: variables on the right, object viewer below your code.",
+  "version": "0.2.0",
   "publisher": "workspacepy",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
@@ -11,25 +11,43 @@
   "activationEvents": ["onStartupFinished"],
   "main": "./extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "workspacepy", "title": "WorkspacePy", "icon": "media/icon.svg" }
+      ],
+      "panel": [
+        { "id": "workspacepyPanel", "title": "Variable Viewer", "icon": "media/icon.svg" }
+      ]
+    },
+    "views": {
+      "workspacepy": [
+        { "id": "workspacepy.workspace", "name": "Workspace", "type": "webview" }
+      ],
+      "workspacepyPanel": [
+        { "id": "workspacepy.viewer", "name": "Variable Viewer", "type": "webview" }
+      ]
+    },
     "commands": [
-      { "command": "workspacepy.open", "title": "WorkspacePy: Abrir workspace al lado" },
-      { "command": "workspacepy.openUrl", "title": "WorkspacePy: Abrir desde una URL…" }
+      { "command": "workspacepy.open", "title": "WorkspacePy: Show Workspace" },
+      { "command": "workspacepy.layoutHelp", "title": "WorkspacePy: MATLAB Layout Help" },
+      { "command": "workspacepy.reconnect", "title": "WorkspacePy: Reconnect to Kernel" },
+      { "command": "workspacepy.openUrl", "title": "WorkspacePy: Connect with a URL…" }
     ],
     "configuration": {
       "title": "WorkspacePy",
       "properties": {
-        "workspacepy.autoOpen": {
+        "workspacepy.autoReveal": {
           "type": "boolean",
           "default": true,
-          "description": "Abrir el panel automáticamente al lado cuando un kernel ejecuta workspacepy.start()."
+          "description": "Reveal the Workspace view automatically when a kernel runs workspacepy.start()."
         },
         "workspacepy.registryPath": {
           "type": "string",
           "default": "",
-          "description": "Ruta de active.json. Vacío = ~/.workspacepy/active.json (o $WORKSPACEPY_HOME)."
+          "description": "Path of active.json written by workspacepy.start(). Empty = ~/.workspacepy/active.json (or $WORKSPACEPY_HOME)."
         }
       }
     }
   },
-  "repository": { "type": "git", "url": "https://github.com/TU_USUARIO/workspacepy" }
+  "repository": { "type": "git", "url": "https://github.com/YOUR_USER/workspacepy" }
 }

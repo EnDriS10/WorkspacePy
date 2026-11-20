@@ -1,7 +1,7 @@
-"""Datos para las gráficas del visor (línea, histograma, barras, imagen).
+"""Data for the viewer plots (line, histogram, bars, image).
 
-El servidor solo devuelve números ya reducidos; el dibujo lo hace el navegador en <canvas>.
-Todos los valores no finitos se devuelven como `null`.
+The server only returns already-reduced numbers; drawing is done by the browser on a <canvas>.
+All non-finite values are returned as `null`.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ MAX_IMAGE_SIDE = 300
 
 
 def slice2d(arr: "np.ndarray", index: Sequence[int] = ()) -> "np.ndarray":
-    """Reduce un array N-d a 2D fijando las dimensiones iniciales con `index`.
+    """Reduce an N-d array to 2D by fixing the leading dimensions with `index`.
 
-    0-d -> (1, 1); 1-d -> columna (n, 1); N-d -> arr[i0, i1, ..., :, :].
+    0-d -> (1, 1); 1-d -> column (n, 1); N-d -> arr[i0, i1, ..., :, :].
     """
     if arr.ndim == 0:
         return arr.reshape(1, 1)
@@ -37,7 +37,7 @@ def slice2d(arr: "np.ndarray", index: Sequence[int] = ()) -> "np.ndarray":
 
 
 def clean_list(values) -> list:
-    """ndarray 1-d -> lista de floats con None en NaN/Inf."""
+    """1-d ndarray -> list of floats with None for NaN/Inf."""
     v = np.asarray(values, dtype=np.float64).ravel()
     out = v.tolist()
     bad = ~np.isfinite(v)
@@ -48,7 +48,7 @@ def clean_list(values) -> list:
 
 
 def _decimate(y: "np.ndarray"):
-    """Devuelve (x, y) con a lo sumo ~MAX_LINE_POINTS puntos conservando los extremos."""
+    """Return (x, y) with at most ~MAX_LINE_POINTS points, keeping the extremes."""
     n = y.shape[0]
     if n <= MAX_LINE_POINTS:
         return np.arange(n), y
@@ -82,7 +82,7 @@ def line_data(arr: "np.ndarray", index: Sequence[int] = ()) -> dict:
     series = []
     for j in range(min(ncols, MAX_SERIES)):
         col = a2[:, j]
-        base = "valor" if single else f"col {j}"
+        base = "value" if single else f"col {j}"
         parts = [(f"{base} (Re)", col.real), (f"{base} (Im)", col.imag)] if col.dtype.kind == "c" else [(base, col)]
         for name, y in parts:
             x, yy = _decimate(np.asarray(y))
@@ -90,7 +90,7 @@ def line_data(arr: "np.ndarray", index: Sequence[int] = ()) -> dict:
     return {
         "kind": "line",
         "series": series,
-        "xlabel": "índice",
+        "xlabel": "index",
         "n": int(a2.shape[0]),
         "truncated_series": bool(ncols > MAX_SERIES),
     }
@@ -103,7 +103,7 @@ def hist_data(arr: "np.ndarray", index: Sequence[int] = ()) -> dict:
         return {"kind": "hist", "edges": [], "counts": [], "n": 0}
     lo, hi = float(v.min()), float(v.max())
     if arr.dtype.kind in "biu" and (hi - lo) < 100:
-        edges = np.arange(lo, hi + 2) - 0.5  # un bin por entero
+        edges = np.arange(lo, hi + 2) - 0.5  # one bin per integer
         counts, edges = np.histogram(v, bins=edges)
     else:
         bins = int(min(100, max(5, math.ceil(math.sqrt(v.size)))))
@@ -115,7 +115,7 @@ def bar_data(arr: "np.ndarray", index: Sequence[int] = ()) -> dict:
     a2 = slice2d(_real(arr), index)
     rows = min(a2.shape[0], MAX_BARS)
     cols = min(a2.shape[1], MAX_BAR_SERIES)
-    series = [{"name": "valor" if arr.ndim <= 1 else f"col {j}", "y": clean_list(a2[:rows, j])} for j in range(cols)]
+    series = [{"name": "value" if arr.ndim <= 1 else f"col {j}", "y": clean_list(a2[:rows, j])} for j in range(cols)]
     return {
         "kind": "bar",
         "series": series,
@@ -160,5 +160,5 @@ def build_plot(arr: "np.ndarray", kind: str, index: Sequence[int] = ()) -> dict:
     try:
         builder = BUILDERS[kind]
     except KeyError:
-        raise ValueError(f"tipo de gráfica desconocido: {kind!r}") from None
+        raise ValueError(f"unknown plot kind: {kind!r}") from None
     return builder(arr, index)

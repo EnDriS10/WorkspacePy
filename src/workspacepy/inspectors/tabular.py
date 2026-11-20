@@ -21,7 +21,7 @@ class PandasInspector(Inspector):
         pd = get_module("pandas")
         return pd is not None and isinstance(obj, (pd.DataFrame, pd.Series, pd.Index))
 
-    # ---- ayudas
+    # ---- helpers
     def _pd(self):
         return get_module("pandas")
 
@@ -34,7 +34,7 @@ class PandasInspector(Inspector):
             return o.to_frame()
         return o.to_frame(index=False)
 
-    # ---- columnas de la tabla
+    # ---- table columns
     def class_name(self) -> str:
         pd = self._pd()
         name = type(self.obj).__name__
@@ -71,19 +71,19 @@ class PandasInspector(Inspector):
             pass
         return None
 
-    # ---- detalle
+    # ---- detail
     def properties(self) -> List[Tuple[str, str]]:
         pd = self._pd()
         o = self.obj
-        props = [("tipo", type(o).__name__), ("shape", str(tuple(o.shape)))]
+        props = [("type", type(o).__name__), ("shape", str(tuple(o.shape)))]
         if isinstance(o, pd.DataFrame):
-            props.append(("columnas", str(len(o.columns))))
-            props.append(("nulos totales", str(int(o.isna().sum().sum()))))
+            props.append(("columns", str(len(o.columns))))
+            props.append(("total nulls", str(int(o.isna().sum().sum()))))
         else:
             props.append(("dtype", str(o.dtype)))
-            props.append(("nulos", str(int(o.isna().sum()))))
-        props.append(("índice", type(o.index).__name__ if not isinstance(o, pd.Index) else "—"))
-        props.append(("memoria (sin deep)", f"{self.nbytes()} B"))
+            props.append(("nulls", str(int(o.isna().sum()))))
+        props.append(("index", type(o.index).__name__ if not isinstance(o, pd.Index) else "—"))
+        props.append(("memory (shallow)", f"{self.nbytes()} B"))
         return props
 
     def detail(self) -> dict:
@@ -106,7 +106,7 @@ class PandasInspector(Inspector):
             cols.append(item)
         return {"columns": cols, "columns_truncated": frame.shape[1] > MAX_COLUMN_SUMMARIES, "editable": not isinstance(self.obj, pd.Index)}
 
-    # ---- hijos: cada columna se abre como Series
+    # ---- children: each column opens as a Series
     def n_children(self):
         pd = self._pd()
         return len(self.obj.columns) if isinstance(self.obj, pd.DataFrame) else None
@@ -117,7 +117,7 @@ class PandasInspector(Inspector):
             for col in self.obj.columns:
                 yield str(col), self.obj[col]
 
-    # ---- tabla
+    # ---- table
     def window(self, r0, r1, c0, c1, index, digits):
         frame = self._frame()
         nrows, ncols = frame.shape
@@ -137,7 +137,7 @@ class PandasInspector(Inspector):
         pd = self._pd()
         o = self.obj
         if isinstance(o, pd.Index):
-            raise ValueError("un Index es inmutable")
+            raise ValueError("an Index is immutable")
         try:
             if isinstance(o, pd.DataFrame):
                 kind = o.dtypes.iloc[col].kind
@@ -146,4 +146,4 @@ class PandasInspector(Inspector):
             o.iat[row] = parse_value(text, o.dtype.kind)
             return format_scalar(o.iat[row], 10)
         except (IndexError, TypeError, OverflowError) as exc:
-            raise ValueError(f"no se pudo asignar: {exc}") from None
+            raise ValueError(f"could not assign: {exc}") from None

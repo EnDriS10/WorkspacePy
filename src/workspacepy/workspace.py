@@ -1,13 +1,14 @@
-"""`Workspace`: la capa que une un espacio de nombres (el del notebook) con los inspectores.
+"""`Workspace`: the layer that joins a namespace (the notebook's) with the inspectors.
 
-No sabe nada de HTTP: recibe peticiones ya parseadas y devuelve diccionarios JSON-serializables.
-Así se puede probar sin servidor y reutilizar desde otras interfaces.
+It knows nothing about HTTP: it receives parsed requests and returns JSON-serializable dicts.
+That way it can be tested without a server and reused from other interfaces.
 """
 
 from __future__ import annotations
 
 import threading
 import types
+from collections import deque
 from typing import Any, Callable, Dict, List, Mapping, MutableMapping, Optional, Sequence
 
 from . import inspectors
@@ -15,15 +16,15 @@ from .inspectors.base import inspector_for, parse_literal
 from .stats import STAT_NAMES, compute_stats
 from .util import jsonable, format_scalar
 
-#: Nombres que IPython/Jupyter inyectan y que no son "variables del usuario".
+#: Names injected by IPython/Jupyter that are not "user variables".
 _IPYTHON_NAMES = {"In", "Out", "get_ipython", "exit", "quit", "open"}
 
-#: Máximo de elementos para calcular estadísticas en la tabla principal (en el detalle no hay tope práctico).
+#: Maximum number of elements for which statistics are computed in the main table (the detail view has no practical cap).
 TABLE_STATS_LIMIT = 500_000
 
 
 class WorkspaceError(Exception):
-    """Error esperable (nombre inexistente, valor inválido...). El servidor lo devuelve como 4xx."""
+    """Expected error (missing name, invalid value...). The server returns it as a 4xx."""
 
 
 class Workspace:
@@ -32,35 +33,64 @@ class Workspace:
         self.exclude = set(exclude)
         self._version = 0
         self._lock = threading.RLock()
+        # Requests to open an object in the viewer (the workspace panel and the viewer panel are
+        # separate pages in the VS Code extension, so they talk through the kernel).
+        self._open_seq = 0
+        self._open_requests: deque = deque(maxlen=50)
 
-    # ------------------------------------------------------------------ versión (para auto-refresco)
+    # ------------------------------------------------------------------ version (for auto-refresh)
     @property
     def version(self) -> int:
         return self._version
 
     def bump(self) -> None:
-        """Marca que el espacio de nombres pudo cambiar (lo llama el hook post_run_cell)."""
+        """Mark that the namespace may have changed (called by the post_run_cell hook)."""
         self._version += 1
 
-    # ------------------------------------------------------------------ nombres visibles
+    # ------------------------------------------------------------------ open requests
+    @property
+    def open_seq(self) -> int:
+        return self._open_seq
+
+    def request_open(self, path: Sequence[str]) -> dict:
+        """Ask every viewer page to open `path` (validated first, so stale clicks fail loudly)."""
+        with self._lock:
+            self._resolve(path)
+            self._open_seq += 1
+            self._open_requests.append((self._open_seq, list(path)))
+            return {"ok": True, "seq": self._open_seq}
+
+    def close_request(self, path: Sequence[str]) -> dict:
+        """Forget an open request (the viewer tab was closed), so a reloaded viewer does not reopen it."""
+        with self._lock:
+            keep = [(s, p) for s, p in self._open_requests if p != list(path)]
+            self._open_requests.clear()
+            self._open_requests.extend(keep)
+            return {"ok": True}
+
+    def open_requests(self, after: int = 0) -> dict:
+        with self._lock:
+            return {"seq": self._open_seq, "requests": [{"seq": s, "path": p} for s, p in self._open_requests if s > int(after)]}
+
+    # ------------------------------------------------------------------ visible names
     def _visible(self, name: str) -> bool:
         return not name.startswith("_") and name not in _IPYTHON_NAMES and name not in self.exclude
 
     def _resolve(self, path: Sequence[str]):
         if not path:
-            raise WorkspaceError("ruta vacía")
+            raise WorkspaceError("empty path")
         name, rest = path[0], path[1:]
         if name not in self.ns:
-            raise WorkspaceError(f"la variable {name!r} ya no existe")
+            raise WorkspaceError(f"variable {name!r} no longer exists")
         obj = self.ns[name]
         for label in rest:
             try:
                 obj = inspector_for(obj).child(label)
             except Exception:
-                raise WorkspaceError(f"no se encuentra {label!r} dentro de {name!r}") from None
+                raise WorkspaceError(f"{label!r} not found inside {name!r}") from None
         return obj
 
-    # ------------------------------------------------------------------ tabla de variables
+    # ------------------------------------------------------------------ variables table
     def row(self, label: str, obj: Any, *, with_stats: bool = True) -> dict:
         insp = inspector_for(obj)
         row = {
@@ -79,15 +109,15 @@ class Workspace:
             row["stats"] = {k: jsonable(stats.get(k)) for k in STAT_NAMES} if stats else {}
         return row
 
-    def list_variables(self, show_hidden: bool = False) -> dict:
+    def list_variables(self, show_hidden: bool = False, with_stats: bool = True) -> dict:
         with self._lock:
             rows = []
             for name in sorted(list(self.ns), key=str.lower):
                 if not self._visible(name):
                     continue
                 try:
-                    r = self.row(name, self.ns[name])
-                except Exception as exc:  # un objeto raro no debe romper toda la tabla
+                    r = self.row(name, self.ns[name], with_stats=with_stats)
+                except Exception as exc:  # a weird object must not break the whole table
                     r = {"name": name, "class": type(self.ns[name]).__name__, "kind": "object", "size": "?",
                          "bytes": 0, "value": f"<error: {exc}>", "hidden": False, "expandable": False, "stats": {}}
                 if r["hidden"] and not show_hidden:
@@ -95,7 +125,7 @@ class Workspace:
                 rows.append(r)
             return {"version": self._version, "variables": rows, "stat_names": list(STAT_NAMES)}
 
-    # ------------------------------------------------------------------ detalle de un objeto
+    # ------------------------------------------------------------------ object detail
     def describe(self, path: Sequence[str]) -> dict:
         with self._lock:
             obj = self._resolve(path)
@@ -140,7 +170,7 @@ class Workspace:
             except ValueError as exc:
                 raise WorkspaceError(str(exc)) from None
 
-    # ------------------------------------------------------------------ edición
+    # ------------------------------------------------------------------ editing
     def set_item(self, path, row, col, text, index=()) -> dict:
         with self._lock:
             insp = inspector_for(self._resolve(path))
@@ -152,7 +182,7 @@ class Workspace:
             return {"ok": True, "value": shown}
 
     def set_value(self, path, text) -> dict:
-        """Reasigna una variable de nivel superior, o un hijo de un contenedor, desde un literal."""
+        """Reassign a top-level variable, or a child of a container, from a literal."""
         with self._lock:
             try:
                 value = parse_literal(str(text))
@@ -160,7 +190,7 @@ class Workspace:
                 raise WorkspaceError(str(exc)) from None
             if len(path) == 1:
                 if path[0] not in self.ns:
-                    raise WorkspaceError(f"la variable {path[0]!r} ya no existe")
+                    raise WorkspaceError(f"variable {path[0]!r} no longer exists")
                 self.ns[path[0]] = value
             else:
                 parent = inspector_for(self._resolve(path[:-1]))
@@ -174,7 +204,7 @@ class Workspace:
     def delete(self, name: str) -> dict:
         with self._lock:
             if name not in self.ns or not self._visible(name):
-                raise WorkspaceError(f"la variable {name!r} no existe")
+                raise WorkspaceError(f"variable {name!r} does not exist")
             del self.ns[name]
             self.bump()
             return {"ok": True}
