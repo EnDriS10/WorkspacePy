@@ -160,10 +160,10 @@ The extension adds two views: **Workspace** (your variables) and **Variable View
 
 ### Install the extension
 
-The repository ships a ready-to-install file, `vscode-extension/workspacepy-0.2.0.vsix`.
+The repository ships a ready-to-install file, `vscode-extension/workspacepy-0.2.1.vsix`.
 
 - **VS Code UI:** *Extensions* panel → `···` menu → **Install from VSIX…** → pick the file.
-- **Terminal:** `code --install-extension vscode-extension/workspacepy-0.2.0.vsix`
+- **Terminal:** `code --install-extension vscode-extension/workspacepy-0.2.1.vsix`
 - **Rebuild it yourself:** `cd vscode-extension && npx @vscode/vsce package`
 
 ### Arrange the layout (one time)

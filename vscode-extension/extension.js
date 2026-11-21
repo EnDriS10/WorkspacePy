@@ -98,7 +98,12 @@ class PanelProvider {
     u.searchParams.set("mode", this.mode);
     this.view.webview.options = { enableScripts: true, portMapping: [{ webviewPort: port, extensionHostPort: port }] };
     let src = u.toString();
-    try { src = (await vscode.env.asExternalUri(vscode.Uri.parse(src))).toString(); } catch (e) { /* keep local URL */ }
+    try {
+      // toString(true) = skip encoding: the default encoding turns "?token=x&mode=y" into "?token%3Dx%26mode%3Dy",
+      // and the server would then reject the request with "Invalid token".
+      const ext = (await vscode.env.asExternalUri(vscode.Uri.parse(src))).toString(true);
+      if (/[?&]token=/.test(ext)) src = ext;     // never use a URL that lost its token
+    } catch (e) { /* keep the local URL */ }
     this.view.webview.html = wrapperHtml(src.replace(/"/g, "&quot;"));
   }
 }

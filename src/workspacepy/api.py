@@ -106,13 +106,38 @@ def _unregister(port: int) -> None:
         _write_registry(data)
 
 
-def _pid_alive(pid: int) -> bool:
+def _pid_alive(pid) -> bool:
+    """True if a process with this pid is running. Never signals the process on Windows.
+
+    Note: `os.kill(pid, 0)` is a harmless existence check on POSIX, but on Windows it calls
+    TerminateProcess and would kill the process, so Windows uses the Win32 API instead.
+    """
     try:
-        os.kill(int(pid), 0)
-    except (OSError, ValueError):
+        pid = int(pid)
+    except (TypeError, ValueError):
         return False
-    except Exception:  # Windows may raise other errors
+    if pid <= 0:
+        return False
+    if pid == os.getpid():
         return True
+    if os.name == "nt":
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except PermissionError:
+        return True
+    except OSError:
+        return False
     return True
 
 
