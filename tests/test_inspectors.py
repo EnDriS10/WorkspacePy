@@ -48,13 +48,16 @@ def test_nd_slice_window():
 
 def test_0d_and_1d_arrays():
     assert inspector_for(np.array(5.0)).window(0, 1, 0, 1, [], 6)["cells"] == [["5"]]
-    w = inspector_for(np.array([1.0, 2.0])).window(0, 2, 0, 1, [], 6)
-    assert w["cells"] == [["1"], ["2"]]
+    w = inspector_for(np.array([1.0, 2.0])).window(0, 1, 0, 2, [], 6)   # a vector is displayed as a row
+    assert w["cells"] == [["1", "2"]] and w["nrows"] == 1 and w["ncols"] == 2
+    v = np.zeros(3); i = inspector_for(v)
+    i.set_item([], 0, 2, "7"); assert v[2] == 7             # editing the displayed row writes to the right element
+    assert i.size_label() == "1×3" and "<" not in i.preview()
 
 
 def test_complex_formatting():
-    w = inspector_for(np.array([1 + 2j, 3 - 1j])).window(0, 2, 0, 1, [], 6)
-    assert w["cells"] == [["1 + 2j"], ["3 - 1j"]]
+    w = inspector_for(np.array([1 + 2j, 3 - 1j])).window(0, 1, 0, 2, [], 6)
+    assert w["cells"] == [["1 + 2j", "3 - 1j"]]
 
 
 def test_scalar_string_list_dict():

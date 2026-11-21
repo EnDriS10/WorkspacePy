@@ -63,6 +63,11 @@ const Fmt = {
   },
 };
 
+/* Animated chevron (morphicons, MIT): ▸ rotates into ▾ when `open` changes. */
+const CHEVRON = { closed: "m9 18 6-6-6-6", open: "m6 9 6 6 6-6" };
+function chevron(open) { return el("morph-icon", { class: "chev", size: "14", "stroke-width": "2", icon: open ? CHEVRON.open : CHEVRON.closed }); }
+function setChevron(node, open) { if (node) node.setAttribute("icon", open ? CHEVRON.open : CHEVRON.closed); }
+
 function el(tag, attrs, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {

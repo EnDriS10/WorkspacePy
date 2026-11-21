@@ -46,7 +46,11 @@ class App {
   _initChrome() {
     this.$("filter").addEventListener("input", () => this.renderTable());
     this.$("btnRefresh").onclick = () => this.refreshAll();
-    this.$("btnCols").onclick = (e) => { e.stopPropagation(); this._colMenu(e.clientX, e.clientY, this.$("btnCols")); };
+    this.$("btnCols").append(this._colsChev = chevron(false));
+    this.$("btnCols").onclick = (e) => {
+      e.stopPropagation();
+      if (this._colsOpen) this._closeMenus(); else this._colMenu(e.clientX, e.clientY, this.$("btnCols"));
+    };
     this.$("btnLayout").onclick = () => this._setLayout(!this.$("main").classList.contains("vertical"));
     this.$("btnTheme").onclick = () => this._cycleTheme();
     this._setLayout(store.get("vertical", innerWidth < 900 || innerHeight > innerWidth));
@@ -63,15 +67,20 @@ class App {
         this._applyTheme(this._theme);               // redraw canvases with the new colors
       }
     });
-    document.addEventListener("click", () => { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); } });
+    document.addEventListener("click", () => this._closeMenus());
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") this._closeMenus(); });
+  }
+
+  _closeMenus() {
+    this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden");
+    this._colsOpen = false; setChevron(this._colsChev, false); this.$("btnCols").setAttribute("aria-expanded", "false");
   }
 
   _setLayout(vertical) {
     const m = this.$("main"), ws = this.$("wsPane");
     m.classList.toggle("vertical", vertical);
     this.$("splitter").setAttribute("aria-orientation", vertical ? "horizontal" : "vertical");
-    ws.style.flex = vertical ? "0 0 38%" : "0 0 44%";
+    ws.style.flex = "0 0 50%";
     store.set("vertical", vertical);
   }
 
@@ -206,10 +215,12 @@ class App {
       cb.onchange = () => { cb.checked ? this.cols.add(k) : this.cols.delete(k); store.set("cols2", [...this.cols]); this.renderTable(); };
       return el("label", { onclick: (e) => e.stopPropagation() }, cb, label);
     }), el("div", { class: "sep" }), el("label", { onclick: (e) => e.stopPropagation() }, hid, "Show functions & modules"));
-    if (anchor) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; }
+    this._closeMenus();
+    if (anchor) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; this._colsOpen = true; setChevron(this._colsChev, true); anchor.setAttribute("aria-expanded", "true"); }
     this._menuAt(m, x, y);
   }
   _ctxMenu(x, y, v) {
+    this._closeMenus();
     const m = this.$("ctxMenu");
     m.replaceChildren(
       el("button", { onclick: () => this.open([v.name]) }, "Open"),

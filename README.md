@@ -162,10 +162,10 @@ Both are fully movable: the **Variable Viewer is a normal editor tab** (drag it 
 
 ### Install the extension
 
-The repository ships a ready-to-install file, `vscode-extension/workspacepy-0.3.0.vsix`.
+The repository ships a ready-to-install file, `vscode-extension/workspacepy-0.3.1.vsix`.
 
 - **VS Code UI:** *Extensions* panel → `···` menu → **Install from VSIX…** → pick the file.
-- **Terminal:** `code --install-extension vscode-extension/workspacepy-0.3.0.vsix`
+- **Terminal:** `code --install-extension vscode-extension/workspacepy-0.3.1.vsix`
 - **Rebuild it yourself:** `cd vscode-extension && npx @vscode/vsce package`
 
 ### Arrange the layout (one time)
@@ -261,6 +261,12 @@ workspacepy.start(globals())                    # outside Jupyter: pass your nam
 ws.open() · ws.show(height=500) · ws.refresh() · ws.instructions() · ws.url
 workspacepy.stop()
 ```
+
+---
+
+## 🙏 Credits
+
+Animated chevrons use [morphicons](https://www.morphicons.com) (MIT, vendored in `static/vendor/morphicons`); LaTeX rendering uses [KaTeX](https://katex.org) (MIT).
 
 ---
 

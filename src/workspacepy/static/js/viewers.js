@@ -58,25 +58,37 @@ class ObjectViewer {
     const i = this.info;
     this.head.replaceChildren(
       el("span", { class: "title", text: i.title }),
-      el("span", { class: "meta", text: `${i.class} · ${i.size} · ${Fmt.bytes(i.bytes)}` }),
       el("span", { class: "sp" }),
       el("button", { class: "icon popout", title: "Open in a separate window", onclick: () => this.app.popOut(this.path) }, "⧉"),
     );
   }
 
+  /* Collapsible side section: a header with an animated chevron, and a body that folds. Open state is remembered. */
+  _section(title, body, openDefault, sub) {
+    const key = "sec." + title, open = store.get(key, openDefault);
+    const wrap = el("section", { class: "sec" + (open ? " open" : "") + (sub ? " sub" : "") });
+    const chev = chevron(open);
+    const head = el("button", { class: "sechead", "aria-expanded": String(open) }, chev, el("span", { text: title }));
+    head.onclick = () => {
+      const now = !wrap.classList.contains("open");
+      wrap.classList.toggle("open", now); head.setAttribute("aria-expanded", String(now)); setChevron(chev, now); store.set(key, now);
+    };
+    wrap.append(head, el("div", { class: "secbody" }, el("div", { class: "secin" }, body)));
+    return wrap;
+  }
+
   _renderSide() {
     const i = this.info, nodes = [];
-    nodes.push(el("h3", { text: "Properties" }));
-    const kv = el("dl", { class: "kv" });
-    for (const [k, v] of i.properties) kv.append(el("dt", { text: k }), el("dd", { text: v }));
-    nodes.push(kv);
+    // Properties: the first rows are always visible, the rest (memory flags, view info...) fold away.
+    const props = i.properties || [], HEAD = 4;
+    const kvOf = (rows) => { const d = el("dl", { class: "kv" }); for (const [k, v] of rows) d.append(el("dt", { text: k }), el("dd", { text: v })); return d; };
+    nodes.push(this._section("Properties", kvOf(props.slice(0, HEAD)), true));
+    if (props.length > HEAD) nodes.push(this._section("More", kvOf(props.slice(HEAD)), false, true));
     const keys = Object.keys(i.stats || {}).filter((k) => i.stats[k] !== null && i.stats[k] !== undefined);
     if (keys.length) {
-      nodes.push(el("h3", { text: "Statistics" }));
       const sk = el("dl", { class: "kv" });
       for (const k of keys) sk.append(el("dt", { text: STAT_LABELS[k] || k }), el("dd", { text: Fmt.num(i.stats[k]) }));
-      nodes.push(sk);
-      if (i.kind === "array" && i.stats.nans) nodes.push(el("div", { class: "hint", text: "min/max/mean… ignore NaNs." }));
+      nodes.push(this._section("Statistics", sk, true));
     }
     this.side.replaceChildren(...nodes);
   }

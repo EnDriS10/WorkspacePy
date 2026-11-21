@@ -141,10 +141,10 @@ class SequenceInspector(Inspector):
         arr = self.numeric()
         if arr is None or arr.ndim not in (1, 2):
             return None
-        a2 = arr.reshape(-1, 1) if arr.ndim == 1 else arr
+        a2 = arr.reshape(1, -1) if arr.ndim == 1 else arr        # vectors are shown as a row
         r0, r1, c0, c1 = clamp_window(a2.shape[0], a2.shape[1], r0, r1, c0, c1)
         return make_window(a2[r0:r1, c0:c1].tolist(), a2.shape[0], a2.shape[1], r0, c0, digits,
-                           col_labels=["value"] if arr.ndim == 1 else None, editable=False, lead_shape=[], index=[])
+                           editable=False, lead_shape=[], index=[])
 
 
 @register

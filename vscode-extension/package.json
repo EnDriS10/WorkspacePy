@@ -2,7 +2,7 @@
   "name": "workspacepy",
   "displayName": "WorkspacePy",
   "description": "MATLAB-style workspace for Jupyter: variable table in a side view, object viewer beside your code. Both draggable.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "workspacepy",
   "license": "MIT",
   "engines": {

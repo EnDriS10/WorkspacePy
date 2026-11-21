@@ -155,3 +155,20 @@ table.mini th { color: var(--muted); font-weight: 500; position: sticky; top: 0;
 table.mini td.r { text-align: right; font-family: var(--mono); }
 table.mini tr.clickable:hover td { background: var(--hover); }
 .hint { color: var(--muted); font-size: 12px; padding: 4px 0; }
+
+/* ---- animated chevrons (morphicons) and folding sections ---- */
+morph-icon.chev { display: inline-block; width: 14px; height: 14px; color: currentColor; flex: none; }
+morph-icon.chev svg { width: 14px; height: 14px; flex: none; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#btnCols { padding: 3px 5px; display: inline-flex; align-items: center; }
+#btnCols[aria-expanded="true"] { color: var(--text); background: var(--hover); }
+#colMenu:not(.hidden) { animation: pop .14s ease-out; transform-origin: top left; }
+@keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+.vside h3 { display: none; }
+.sec { margin: 0 0 6px; }
+.sec.sub { margin-top: 2px; }
+.sechead { display: flex; align-items: center; gap: 4px; width: 100%; padding: 4px 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; text-align: left; }
+.sechead:hover { color: var(--text); background: transparent; }
+.secbody { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .2s ease; }
+.sec.open > .secbody { grid-template-rows: 1fr; }
+.secin { overflow: hidden; min-height: 0; padding-left: 18px; }
+@media (prefers-reduced-motion: reduce) { .secbody { transition: none; } #colMenu:not(.hidden) { animation: none; } }

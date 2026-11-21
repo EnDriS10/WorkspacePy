@@ -1,4 +1,4 @@
-"""Inspectores de arrays: numpy.ndarray y matrices dispersas de scipy.sparse."""
+"""Array inspectors: numpy.ndarray and scipy.sparse matrices."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def full_key(arr, index: Sequence[int], row: int, col: int) -> tuple:
     if arr.ndim == 0:
         return ()
     if arr.ndim == 1:
-        return (int(row),)
+        return (int(col),)             # 1-d arrays are displayed as one row
     lead = []
     for k in range(arr.ndim - 2):
         i = int(index[k]) if k < len(index) else 0
@@ -51,11 +51,11 @@ class NumpyInspector(Inspector):
         a = self.obj
         if a.size == 0:
             return "[]"
-        if a.size <= 6 and a.dtype.kind in "biufc":
-            text = np.array2string(a, precision=4, separator=", ", max_line_width=10_000)
-            return " ".join(text.split())
         if a.dtype.kind in "biufc":
-            return f"<{size_label(a.shape)} {a.dtype}>"
+            # Show the content (the shape is in Size and the dtype in Class): [0, 0.101, ..., 10]
+            text = np.array2string(a, precision=4, threshold=6, edgeitems=2, separator=", ", max_line_width=10_000)
+            text = " ".join(text.split()).replace("[ ", "[").replace(" ]", "]")
+            return text if len(text) <= 80 else text[:79] + "…"
         return short_repr(a)
 
     def numeric(self):
@@ -76,10 +76,10 @@ class NumpyInspector(Inspector):
 
     def window(self, r0, r1, c0, c1, index, digits):
         a = self.obj
-        a2 = slice2d(a, index)
+        a2 = a.reshape(1, -1) if a.ndim == 1 else slice2d(a, index)     # vectors are shown as a row
         r0, r1, c0, c1 = clamp_window(a2.shape[0], a2.shape[1], r0, r1, c0, c1)
         values = a2[r0:r1, c0:c1].tolist()
-        col_labels = ["value"] if a.ndim <= 1 else None
+        col_labels = None
         return make_window(
             values, a2.shape[0], a2.shape[1], r0, c0, digits, col_labels=col_labels,
             lead_shape=list(a.shape[:-2]) if a.ndim > 2 else [], index=lead_index(a, index),
@@ -101,7 +101,7 @@ class NumpyInspector(Inspector):
 
 @register
 class SparseInspector(Inspector):
-    """Matrices/arrays dispersos de scipy.sparse (csr, csc, coo, lil, dok, dia, bsr)."""
+    """scipy.sparse matrices/arrays (csr, csc, coo, lil, dok, dia, bsr)."""
 
     kind = "array"
     priority = 80
@@ -126,7 +126,7 @@ class SparseInspector(Inspector):
         return total or deep_sizeof(self.obj)
 
     def preview(self) -> str:
-        return f"<{size_label(self.shape())} sparse {self.obj.format}, nnz={self.obj.nnz}>"
+        return f"sparse {self.obj.format}, nnz={self.obj.nnz}"
 
     def _n_elements(self) -> int:
         r, c = self.obj.shape[:2]
@@ -142,8 +142,8 @@ class SparseInspector(Inspector):
         n = self._n_elements()
         density = (m.nnz / n) if n else 0.0
         return [
-            ("formato", str(m.format)), ("shape", str(tuple(m.shape))), ("dtype", str(m.dtype)),
-            ("nnz", str(m.nnz)), ("densidad", f"{density:.4g}"), ("nbytes (almacenado)", f"{self.nbytes()} B"),
+            ("format", str(m.format)), ("shape", str(tuple(m.shape))), ("dtype", str(m.dtype)),
+            ("nnz", str(m.nnz)), ("density", f"{density:.4g}"), ("nbytes (stored)", f"{self.nbytes()} B"),
         ]
 
     def window(self, r0, r1, c0, c1, index, digits):

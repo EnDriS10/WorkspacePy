@@ -135,4 +135,6 @@ def size_label(shape) -> str:
         return "1×1"
     if len(shape) == 0:
         return "()"
+    if len(shape) == 1:
+        return f"1×{int(shape[0])}"      # MATLAB style: a vector is a row
     return "×".join(str(int(s)) for s in shape)
