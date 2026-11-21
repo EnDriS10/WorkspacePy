@@ -11,7 +11,7 @@
 }
 :root[data-theme="dark"] { --bg: #1b1e25; --panel-2: #232831; --border: #343b49; --text: #e3e8f0; --muted: #8b96a8; --accent: #5b9cff; --danger: #ff7a74; --ok: #4cc38a; color-scheme: dark; }
 /* derived tokens follow whatever --bg/--text/--border/--accent end up being */
-:root { --grid: color-mix(in srgb, var(--border) 55%, transparent); --hover: color-mix(in srgb, var(--text) 7%, transparent);
+:root { --grid: color-mix(in srgb, var(--border) 85%, transparent); --hover: color-mix(in srgb, var(--text) 7%, transparent);
         --sel: color-mix(in srgb, var(--accent) 24%, transparent); --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
         --cell-edit: color-mix(in srgb, #e5b400 22%, var(--bg)); }
 
@@ -59,10 +59,10 @@ body[data-mode="viewer"] .popout { display: none; }
 #wsTools input[type=search] { flex: 1; min-width: 40px; }
 #wsScroll { flex: 1; overflow: auto; }
 table.ws { border-collapse: collapse; width: 100%; }
-table.ws th { position: sticky; top: 0; z-index: 1; background: var(--bg); text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+table.ws th { position: sticky; overflow: visible; top: 0; z-index: 1; background: var(--bg); text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
 table.ws th:hover { color: var(--text); }
 table.ws th .arrow { color: var(--accent); margin-left: 4px; font-size: 10px; }
-table.ws td { padding: 5px 12px; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+table.ws td { padding: 5px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 table.ws tbody tr { cursor: default; outline: none; }
 table.ws tbody tr:hover td { background: var(--hover); }
 table.ws tbody tr.sel td { background: var(--sel); }
@@ -115,7 +115,7 @@ table.ws td.cls { color: var(--muted); }
 .subtab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 6px 10px; color: var(--muted); background: transparent; }
 .subtab:hover { color: var(--text); background: transparent; }
 .subtab.active { color: var(--text); border-bottom-color: var(--accent); }
-.slice { margin-left: auto; display: flex; gap: 4px; align-items: center; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.slice { margin-left: auto; margin-right: 6px; display: flex; gap: 4px; align-items: center; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .slice input { width: 52px; padding: 2px 6px; }
 .vmain > .pane { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .vmain > .pane > .pane { position: absolute; inset: 0; overflow: hidden; }
@@ -126,12 +126,12 @@ table.ws td.cls { color: var(--muted); }
 .g-sizer { position: relative; }
 .g-corner { position: sticky; left: 0; top: 0; z-index: 4; height: 24px; margin-bottom: -24px; background: var(--bg); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .g-colhead { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--border); }
-.g-ch, .g-rh { position: absolute; color: var(--muted); background: var(--bg); text-align: center; line-height: 23px; height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
+.g-ch, .g-rh { position: absolute; border-right: 1px solid var(--grid); color: var(--muted); background: var(--bg); text-align: center; line-height: 23px; height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
 .g-ch { top: 0; }
 .g-rowhead { position: sticky; left: 0; z-index: 2; background: var(--bg); border-right: 1px solid var(--border); }
 .g-rh { left: 0; right: 0; text-align: right; }
 .g-cells { position: absolute; }
-.g-c { position: absolute; height: 24px; line-height: 23px; padding: 0 8px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-c { position: absolute; border-right: 1px solid var(--grid); height: 24px; line-height: 23px; padding: 0 8px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g-c.text { text-align: left; }
 .g-c.cur { outline: 1.5px solid var(--accent); outline-offset: -1.5px; background: var(--accent-soft); }
 .g-c.editing { padding: 0; overflow: visible; z-index: 5; }
@@ -172,3 +172,17 @@ morph-icon.chev svg { width: 14px; height: 14px; flex: none; display: block; fil
 .sec.open > .secbody { grid-template-rows: 1fr; }
 .secin { overflow: hidden; min-height: 0; padding-left: 18px; }
 @media (prefers-reduced-motion: reduce) { .secbody { transition: none; } #colMenu:not(.hidden) { animation: none; } }
+
+.sidebtn { margin-left: auto; align-self: center; font-size: 16px; letter-spacing: 1px; }
+.slice ~ .sidebtn { margin-left: 0; }
+.g-rh { border-right: 0; }
+.g-c.text { border-right-color: var(--grid); }
+.rz { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; z-index: 2; }
+.rz:hover, .rz.drag { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+table.ws { table-layout: fixed; }
+table.ws td { overflow: hidden; text-overflow: ellipsis; }
+/* side panel floats over the data instead of squeezing it; the subtab row never wraps */
+.subtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.subtab, .slice, .sidebtn { flex: none; }
+.vbody { position: relative; }
+.vside { position: absolute; right: 0; top: 37px; bottom: 0; width: 210px; flex: none; background: var(--bg); box-shadow: -8px 0 18px rgba(0,0,0,.12); z-index: 6; }
