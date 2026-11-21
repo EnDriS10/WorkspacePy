@@ -11,7 +11,6 @@ const ALL_COLS = [
 const MODE = new URLSearchParams(location.search).get("mode") || "full";
 const DEFAULT_COLS = ["name", "value", "size", "class"];
 const STAT_COLS = new Set(["min", "max", "range", "mean", "median", "mode", "std", "var", "sum", "nnz", "nans"]);
-const KIND_ICON = { array: "#", table: "⊞", sympy: "∑", container: "{}", scalar: "·", callable: "ƒ", object: "◇" };
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem("workspacepy." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -47,17 +46,22 @@ class App {
   _initChrome() {
     this.$("filter").addEventListener("input", () => this.renderTable());
     this.$("btnRefresh").onclick = () => this.refreshAll();
-    this.$("showHidden").onchange = (e) => { this.hidden = e.target.checked; this.refreshAll(); };
     this.$("btnCols").onclick = (e) => { e.stopPropagation(); this._colMenu(e.clientX, e.clientY, this.$("btnCols")); };
     this.$("btnLayout").onclick = () => this._setLayout(!this.$("main").classList.contains("vertical"));
     this.$("btnTheme").onclick = () => this._cycleTheme();
     this._setLayout(store.get("vertical", innerWidth < 900 || innerHeight > innerWidth));
     this._applyTheme(store.get("theme", "auto"));
     this._initSplitter();
-    window.addEventListener("message", (e) => {          // theme pushed by the VS Code wrapper
-      if (e.source !== window.parent || !e.data || e.data.workspacepy !== "theme") return;
-      this._hostTheme = e.data.theme === "dark" ? "dark" : "light";
-      this._applyTheme(this._theme);
+    window.addEventListener("message", (e) => {          // theme/colors pushed by the VS Code wrapper
+      if (e.source !== window.parent || !e.data) return;
+      if (e.data.workspacepy === "theme") {
+        this._hostTheme = e.data.theme === "dark" ? "dark" : "light";
+        this._applyTheme(this._theme);
+      } else if (e.data.workspacepy === "colors" && e.data.vars) {
+        const root = document.documentElement.style;
+        for (const [k, v] of Object.entries(e.data.vars)) if (/^--[\w-]+$/.test(k) && typeof v === "string" && v) root.setProperty(k, v);
+        this._applyTheme(this._theme);               // redraw canvases with the new colors
+      }
     });
     document.addEventListener("click", () => { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { this.$("colMenu").classList.add("hidden"); this.$("ctxMenu").classList.add("hidden"); } });
@@ -111,7 +115,7 @@ class App {
     this.offline = !ok;
     const s = this.$("status");
     s.classList.toggle("off", !ok);
-    s.textContent = ok ? "connected" : "no connection to the kernel";
+    s.title = ok ? "Connected" : "No connection to the kernel";
   }
 
   async refreshAll() {
@@ -169,7 +173,7 @@ class App {
       const tr = el("tr", { tabindex: "0", class: v.name === this.selected ? "sel" : "", "data-name": v.name });
       for (const [k] of cols) {
         const td = el("td", { class: (STAT_COLS.has(k) || k === "bytes" ? "num " : "") + (k === "name" ? "name" : k === "class" ? "cls" : ""), title: k === "value" ? v.value : null });
-        if (k === "name") td.append(el("span", { class: "kindbadge", text: KIND_ICON[v.kind] || "·" }), v.name);
+        if (k === "name") td.textContent = v.name;
         else td.textContent = this._cell(v, k);
         tr.append(td);
       }
@@ -195,11 +199,13 @@ class App {
   }
   _colMenu(x, y, anchor) {
     const m = this.$("colMenu");
+    const hid = el("input", { type: "checkbox" }); hid.checked = this.hidden;
+    hid.onchange = () => { this.hidden = hid.checked; this.refreshAll(); };
     m.replaceChildren(...ALL_COLS.map(([k, label]) => {
       const cb = el("input", { type: "checkbox" }); cb.checked = this.cols.has(k); cb.disabled = k === "name";
       cb.onchange = () => { cb.checked ? this.cols.add(k) : this.cols.delete(k); store.set("cols2", [...this.cols]); this.renderTable(); };
       return el("label", { onclick: (e) => e.stopPropagation() }, cb, label);
-    }));
+    }), el("div", { class: "sep" }), el("label", { onclick: (e) => e.stopPropagation() }, hid, "Show functions & modules"));
     if (anchor) { const r = anchor.getBoundingClientRect(); x = r.left; y = r.bottom + 4; }
     this._menuAt(m, x, y);
   }
@@ -207,7 +213,7 @@ class App {
     const m = this.$("ctxMenu");
     m.replaceChildren(
       el("button", { onclick: () => this.open([v.name]) }, "Open"),
-      el("button", { onclick: () => this.popOut([v.name]) }, "Open in separate window"),
+      MODE === "full" ? el("button", { onclick: () => this.popOut([v.name]) }, "Open in separate window") : null,
       el("button", { onclick: () => navigator.clipboard && navigator.clipboard.writeText(v.name).catch(() => {}) }, "Copy name"),
       el("button", { class: "danger", onclick: () => this._delete(v.name) }, "Delete variable"));
     this._menuAt(m, x, y);

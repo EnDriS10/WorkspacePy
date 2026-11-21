@@ -1,170 +1,157 @@
+/* WorkspacePy UI. Colors are tokens on :root; inside VS Code the wrapper overrides them with the
+   user's theme colors (see the "colors" message in app.js), so the panels match the editor. */
 :root {
-  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #eef0f4; --border: #d6dae2;
-  --text: #1c2330; --muted: #6a7587; --accent: #1f6feb; --accent-soft: #dbe8ff;
-  --sel: #cfe0ff; --hover: #eef3ff; --danger: #c93c37; --ok: #1a7f4b;
-  --grid: #e6e9ef; --cell-edit: #fff7d6;
+  --bg: #ffffff; --panel-2: #f3f4f6; --border: #dcdfe5; --text: #1f2430; --muted: #6b7280; --accent: #2563eb; --danger: #c93c37; --ok: #1a7f4b;
   --font: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #14171d; --panel: #1b1f27; --panel-2: #232833; --border: #343b49;
-    --text: #e3e8f0; --muted: #8b96a8; --accent: #5b9cff; --accent-soft: #223452;
-    --sel: #28406b; --hover: #222b3b; --danger: #ff7a74; --ok: #4cc38a;
-    --grid: #2a303b; --cell-edit: #3b3517;
-  }
+  :root:not([data-theme="light"]) { --bg: #1b1e25; --panel-2: #232831; --border: #343b49; --text: #e3e8f0; --muted: #8b96a8; --accent: #5b9cff; --danger: #ff7a74; --ok: #4cc38a; color-scheme: dark; }
 }
-:root[data-theme="dark"] {
-  --bg: #14171d; --panel: #1b1f27; --panel-2: #232833; --border: #343b49;
-  --text: #e3e8f0; --muted: #8b96a8; --accent: #5b9cff; --accent-soft: #223452;
-  --sel: #28406b; --hover: #222b3b; --danger: #ff7a74; --ok: #4cc38a;
-  --grid: #2a303b; --cell-edit: #3b3517;
-}
+:root[data-theme="dark"] { --bg: #1b1e25; --panel-2: #232831; --border: #343b49; --text: #e3e8f0; --muted: #8b96a8; --accent: #5b9cff; --danger: #ff7a74; --ok: #4cc38a; color-scheme: dark; }
+/* derived tokens follow whatever --bg/--text/--border/--accent end up being */
+:root { --grid: color-mix(in srgb, var(--border) 55%, transparent); --hover: color-mix(in srgb, var(--text) 7%, transparent);
+        --sel: color-mix(in srgb, var(--accent) 24%, transparent); --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+        --cell-edit: color-mix(in srgb, #e5b400 22%, var(--bg)); }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--text); font: 13px/1.4 var(--font); overflow: hidden; }
+body { background: var(--bg); color: var(--text); font: 13px/1.45 var(--font); overflow: hidden; }
 button, input, select { font: inherit; color: inherit; }
-button { background: var(--panel); border: 1px solid var(--border); border-radius: 5px; padding: 3px 9px; cursor: pointer; }
-button:hover { background: var(--hover); }
-button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-button.icon { padding: 2px 7px; }
-button.on { background: var(--accent-soft); border-color: var(--accent); }
-input[type=text], input[type=search], input[type=number], select { background: var(--panel); border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; }
-.muted { color: var(--muted); }
-.mono { font-family: var(--mono); }
-.hidden { display: none !important; }
+button { background: transparent; border: 1px solid transparent; border-radius: 5px; padding: 3px 8px; cursor: pointer; color: var(--muted); }
+button:hover { background: var(--hover); color: var(--text); }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+button.icon { padding: 2px 7px; font-size: 14px; line-height: 1.2; }
+button.on { color: var(--accent); }
+input[type=text], input[type=search], input[type=number] { background: var(--panel-2); border: 1px solid transparent; border-radius: 5px; padding: 4px 8px; }
+input[type=search]:focus, input[type=text]:focus { border-color: var(--accent); outline: none; }
+.muted { color: var(--muted); } .mono { font-family: var(--mono); } .hidden { display: none !important; }
 
-/* ---- barra superior ---- */
-#topbar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); height: 38px; }
-#topbar h1 { font-size: 13px; margin: 0 6px 0 0; font-weight: 650; letter-spacing: .2px; }
-#topbar .spacer { flex: 1; }
-#topbar label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); cursor: pointer; }
-#status { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
-#status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
-#status.off::before { background: var(--danger); }
+/* ---- full-page top bar (standalone browser only) ---- */
+#topbar { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-bottom: 1px solid var(--border); height: 36px; }
+#topbar h1 { font-size: 13px; margin: 0; font-weight: 600; }
+.spacer { flex: 1; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; margin: 0 4px; }
+.dot.off { background: var(--danger); }
 
-/* ---- split layout ---- */
-#main { display: flex; height: calc(100% - 38px); }
+/* ---- layout ---- */
+#main { display: flex; height: calc(100% - 36px); }
 #main.vertical { flex-direction: column; }
-#wsPane, #viewPane { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--panel); }
+#wsPane, #viewPane { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 #wsPane { flex: 0 0 44%; }
 #viewPane { flex: 1 1 auto; }
-#splitter { flex: 0 0 5px; background: var(--border); cursor: col-resize; }
-#main.vertical #splitter { cursor: row-resize; }
+#splitter { flex: 0 0 1px; background: var(--border); cursor: col-resize; position: relative; }
+#splitter::after { content: ""; position: absolute; inset: 0 -3px; }
+#main.vertical #splitter { cursor: row-resize; } #main.vertical #splitter::after { inset: -3px 0; }
 #splitter:hover, #splitter.drag { background: var(--accent); }
-body.solo #wsPane, body.solo #splitter, body.solo #topbar { display: none; }
+body.solo #wsPane, body.solo #splitter, body.solo #topbar, body.solo #tabs { display: none; }
 body.solo #main { height: 100%; }
+/* VS Code extension: the workspace and the viewer are separate panels/tabs */
+body[data-mode="workspace"] #topbar, body[data-mode="workspace"] #splitter, body[data-mode="workspace"] #viewPane,
+body[data-mode="viewer"] #topbar, body[data-mode="viewer"] #splitter, body[data-mode="viewer"] #wsPane { display: none; }
+body[data-mode="workspace"] #main, body[data-mode="viewer"] #main { height: 100%; }
+body[data-mode="workspace"] #wsPane { flex: 1 1 auto !important; }
+body[data-mode="viewer"] .popout { display: none; }
 
-/* ---- tabla del workspace ---- */
-#wsTools { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); align-items: center; }
-#wsTools input[type=search] { flex: 1; min-width: 80px; }
+/* ---- workspace table ---- */
+#wsTools { display: flex; gap: 4px; padding: 6px 8px; align-items: center; }
+#wsTools input[type=search] { flex: 1; min-width: 40px; }
 #wsScroll { flex: 1; overflow: auto; }
-table.ws { border-collapse: collapse; width: max-content; min-width: 100%; }
-table.ws th { position: sticky; top: 0; background: var(--panel-2); text-align: left; font-weight: 600; padding: 4px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--grid); cursor: pointer; user-select: none; white-space: nowrap; z-index: 1; }
-table.ws th .arrow { color: var(--accent); margin-left: 3px; }
-table.ws td { padding: 3px 10px; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-table.ws tr { cursor: default; }
-table.ws tbody tr:hover { background: var(--hover); }
-table.ws tbody tr.sel { background: var(--sel); }
+table.ws { border-collapse: collapse; width: 100%; }
+table.ws th { position: sticky; top: 0; z-index: 1; background: var(--bg); text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+table.ws th:hover { color: var(--text); }
+table.ws th .arrow { color: var(--accent); margin-left: 4px; font-size: 10px; }
+table.ws td { padding: 5px 12px; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+table.ws tbody tr { cursor: default; outline: none; }
+table.ws tbody tr:hover td { background: var(--hover); }
+table.ws tbody tr.sel td { background: var(--sel); }
 table.ws td.num { text-align: right; font-family: var(--mono); font-size: 12px; }
-table.ws td.name { font-weight: 600; font-family: var(--mono); }
+table.ws td.name { font-weight: 600; font-family: var(--mono); font-size: 12.5px; position: sticky; left: 0; background: var(--bg); z-index: 2; }
+table.ws th:first-child { position: sticky; left: 0; z-index: 4; }
+table.ws tbody tr:hover td.name { background: color-mix(in srgb, var(--text) 7%, var(--bg)); }
+table.ws tbody tr.sel td.name { background: color-mix(in srgb, var(--accent) 24%, var(--bg)); }
+table.ws td.val { color: var(--muted); font-family: var(--mono); font-size: 12px; }
 table.ws td.cls { color: var(--muted); }
-.kindbadge { display: inline-block; width: 14px; text-align: center; margin-right: 6px; color: var(--accent); font-family: var(--mono); font-size: 11px; }
-#wsEmpty { padding: 24px; color: var(--muted); text-align: center; }
+#wsEmpty { padding: 28px 16px; color: var(--muted); text-align: center; }
 
-#colMenu, #ctxMenu { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--border); border-radius: 7px; box-shadow: 0 6px 24px rgba(0,0,0,.22); padding: 4px; min-width: 150px; }
-#colMenu label, #ctxMenu button { display: flex; align-items: center; gap: 7px; padding: 4px 9px; border-radius: 4px; cursor: pointer; width: 100%; border: 0; background: transparent; text-align: left; }
+#colMenu, #ctxMenu { position: fixed; z-index: 50; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.28); padding: 4px; min-width: 160px; }
+#colMenu label, #ctxMenu button { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 5px; cursor: pointer; width: 100%; border: 0; background: transparent; text-align: left; color: var(--text); }
 #colMenu label:hover, #ctxMenu button:hover { background: var(--hover); }
+#colMenu .sep { height: 1px; background: var(--border); margin: 4px 2px; }
 #ctxMenu button.danger { color: var(--danger); }
 
-/* ---- object tabs ---- */
-#tabs { display: flex; gap: 1px; background: var(--panel-2); border-bottom: 1px solid var(--border); overflow-x: auto; min-height: 33px; }
-.tab { display: flex; align-items: center; gap: 6px; padding: 6px 4px 6px 12px; border-right: 1px solid var(--border); cursor: pointer; white-space: nowrap; color: var(--muted); font-family: var(--mono); font-size: 12px; }
-.tab.active { background: var(--panel); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
-.tab .x { border: 0; background: transparent; color: var(--muted); padding: 0 6px; border-radius: 4px; }
-.tab .x:hover { background: var(--hover); color: var(--danger); }
-.tab.stale { text-decoration: line-through; opacity: .6; }
+/* ---- object tabs (viewer) ---- */
+#tabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border); min-height: 34px; }
+#tabs:empty { display: none; }
+.tab { display: flex; align-items: center; gap: 6px; padding: 7px 4px 7px 14px; cursor: pointer; white-space: nowrap; color: var(--muted); font-family: var(--mono); font-size: 12px; border-bottom: 2px solid transparent; min-width: 70px; }
+.tab > span { flex: 1; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab .x { padding: 0 6px; font-size: 14px; line-height: 1; opacity: 0; }
+.tab:hover .x, .tab.active .x { opacity: .8; }
+.tab .x:hover { color: var(--danger); }
+.tab.stale { text-decoration: line-through; opacity: .55; }
 #viewBody { flex: 1; min-height: 0; position: relative; }
 .viewer { position: absolute; inset: 0; display: none; flex-direction: column; }
 .viewer.active { display: flex; }
-#placeholder { padding: 40px 20px; text-align: center; color: var(--muted); }
-#placeholder kbd { background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+#placeholder { padding: 48px 20px; text-align: center; color: var(--muted); }
 
-/* ---- visor ---- */
-.vhead { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.vhead .title { font-weight: 650; font-family: var(--mono); }
-.vhead .meta { color: var(--muted); }
+/* ---- viewer ---- */
+.vhead { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px 4px; }
+.vhead .title { font-weight: 600; font-family: var(--mono); font-size: 14px; }
+.vhead .meta { color: var(--muted); font-size: 12px; }
 .vhead .sp { flex: 1; }
+.vhead button { align-self: center; }
 .vbody { flex: 1; min-height: 0; display: flex; }
 .vmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.vside { flex: 0 0 210px; border-left: 1px solid var(--border); overflow: auto; padding: 8px 10px; background: var(--panel); }
-.vside h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 10px 0 5px; }
+.vside { flex: 0 0 190px; border-left: 1px solid var(--border); overflow: auto; padding: 10px 14px; }
+.viewer.no-side .vside { display: none; }
+.vside h3 { font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
 .vside h3:first-child { margin-top: 0; }
-.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; margin: 0; }
 .kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; font-family: var(--mono); overflow-wrap: anywhere; }
-.subtabs { display: flex; gap: 2px; padding: 5px 8px 0; border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
-.subtab { border: 1px solid transparent; border-bottom: 0; border-radius: 5px 5px 0 0; background: transparent; padding: 4px 11px; color: var(--muted); }
-.subtab.active { background: var(--panel); border-color: var(--border); color: var(--text); position: relative; top: 1px; }
-.slice { margin-left: auto; display: flex; gap: 6px; align-items: center; color: var(--muted); padding-bottom: 3px; }
-.slice input { width: 56px; }
-.pane { flex: 1; min-height: 0; position: relative; overflow: auto; }
+.subtabs { display: flex; gap: 2px; padding: 0 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.subtab { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 6px 10px; color: var(--muted); background: transparent; }
+.subtab:hover { color: var(--text); background: transparent; }
+.subtab.active { color: var(--text); border-bottom-color: var(--accent); }
+.slice { margin-left: auto; display: flex; gap: 4px; align-items: center; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.slice input { width: 52px; padding: 2px 6px; }
+.vmain > .pane { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.vmain > .pane > .pane { position: absolute; inset: 0; overflow: hidden; }
+.pane { position: relative; }
 
-/* ---- rejilla de datos (virtualizada) ---- */
+/* ---- data grid (virtualized) ---- */
 .gridwrap { position: absolute; inset: 0; overflow: auto; outline: none; font-family: var(--mono); font-size: 12px; }
 .g-sizer { position: relative; }
-.g-corner { position: sticky; left: 0; top: 0; z-index: 4; height: 24px; margin-bottom: -24px; background: var(--panel-2); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.g-colhead { position: sticky; top: 0; z-index: 3; background: var(--panel-2); border-bottom: 1px solid var(--border); }
-.g-ch, .g-rh { position: absolute; color: var(--muted); background: var(--panel-2); text-align: center; line-height: 23px; height: 24px; border-right: 1px solid var(--grid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
+.g-corner { position: sticky; left: 0; top: 0; z-index: 4; height: 24px; margin-bottom: -24px; background: var(--bg); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.g-colhead { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--border); }
+.g-ch, .g-rh { position: absolute; color: var(--muted); background: var(--bg); text-align: center; line-height: 23px; height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
 .g-ch { top: 0; }
-.g-rowhead { position: sticky; left: 0; z-index: 2; background: var(--panel-2); border-right: 1px solid var(--border); }
-.g-rh { left: 0; right: 0; text-align: right; border-bottom: 1px solid var(--grid); border-right: 0; }
+.g-rowhead { position: sticky; left: 0; z-index: 2; background: var(--bg); border-right: 1px solid var(--border); }
+.g-rh { left: 0; right: 0; text-align: right; }
 .g-cells { position: absolute; }
-.g-c { position: absolute; height: 24px; line-height: 23px; padding: 0 8px; text-align: right; border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-c { position: absolute; height: 24px; line-height: 23px; padding: 0 8px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g-c.text { text-align: left; }
-.g-c.cur { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--hover); }
+.g-c.cur { outline: 1.5px solid var(--accent); outline-offset: -1.5px; background: var(--accent-soft); }
 .g-c.editing { padding: 0; overflow: visible; z-index: 5; }
-.g-input { width: 100%; height: 100%; border: 0; outline: 2px solid var(--accent); outline-offset: -2px; background: var(--cell-edit); font: inherit; text-align: right; padding: 0 8px; color: var(--text); }
+.g-input { width: 100%; height: 100%; border: 0; outline: 1.5px solid var(--accent); outline-offset: -1.5px; background: var(--cell-edit); font: inherit; text-align: right; padding: 0 8px; color: var(--text); border-radius: 0; }
 .gridnote { position: absolute; right: 12px; bottom: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 2px 8px; color: var(--muted); font-size: 11px; pointer-events: none; z-index: 10; }
 .gridnote.err { color: var(--danger); border-color: var(--danger); }
 
-/* ---- plots ---- */
-.plotbox { position: absolute; inset: 0; padding: 6px; }
+/* ---- plots and other panes ---- */
+.plotbox { position: absolute; inset: 0; padding: 8px; }
 .plotbox canvas { width: 100%; height: 100%; display: block; }
-.plotbar { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
-
-/* ---- otros visores ---- */
 .scroll { position: absolute; inset: 0; overflow: auto; padding: 12px 16px; }
 .latexbox { font-size: 1.35em; padding: 14px 6px; overflow-x: auto; }
-pre.code { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; overflow: auto; margin: 6px 0 12px; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
-.bigval { font-family: var(--mono); font-size: 20px; padding: 10px 0; overflow-wrap: anywhere; }
+pre.code { background: var(--panel-2); border-radius: 6px; padding: 8px 10px; overflow: auto; margin: 6px 0 12px; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.bigval { font-family: var(--mono); font-size: 20px; padding: 6px 0 10px; overflow-wrap: anywhere; margin: 0; }
 .errbox { color: var(--danger); padding: 14px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-.chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 1px 9px; font-size: 12px; }
-.chip b { color: var(--muted); font-weight: 500; margin-right: 5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--panel-2); border-radius: 12px; padding: 1px 10px; font-size: 12px; }
 table.mini { border-collapse: collapse; width: 100%; font-size: 12px; }
-table.mini th, table.mini td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--grid); }
-table.mini th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
+table.mini th, table.mini td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--grid); }
+table.mini th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--bg); }
 table.mini td.r { text-align: right; font-family: var(--mono); }
-table.mini tr.clickable { cursor: default; }
-table.mini tr.clickable:hover { background: var(--hover); }
-.hint { color: var(--muted); font-size: 11px; padding: 6px 2px; }
-
-/* ---- layout tweaks ---- */
-.vmain > .pane { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.vmain > .pane > .pane { position: absolute; inset: 0; overflow: hidden; }
-body.solo #tabs { display: none; }
-.tab { min-width: 76px; }
-.tab > span { flex: 1; }
-table.ws th:first-child, table.ws td.name { position: sticky; left: 0; z-index: 2; box-shadow: 1px 0 0 var(--border); }
-table.ws td.name { background: var(--panel); }
-table.ws tbody tr:hover td.name { background: var(--hover); }
-table.ws tbody tr.sel td.name { background: var(--sel); }
-table.ws th:first-child { z-index: 4; }
-
-/* ---- page modes (VS Code extension shows the workspace and the viewer in separate panels) ---- */
-body[data-mode="workspace"] #splitter, body[data-mode="workspace"] #viewPane, body[data-mode="workspace"] #btnLayout { display: none; }
-body[data-mode="workspace"] #wsPane { flex: 1 1 auto !important; }
-body[data-mode="viewer"] #wsPane, body[data-mode="viewer"] #splitter, body[data-mode="viewer"] #topbar { display: none; }
-body[data-mode="viewer"] #main { height: 100%; }
-body[data-mode="viewer"] #placeholder { padding: 24px 16px; }
+table.mini tr.clickable:hover td { background: var(--hover); }
+.hint { color: var(--muted); font-size: 12px; padding: 4px 0; }

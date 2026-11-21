@@ -60,7 +60,7 @@ class ObjectViewer {
       el("span", { class: "title", text: i.title }),
       el("span", { class: "meta", text: `${i.class} · ${i.size} · ${Fmt.bytes(i.bytes)}` }),
       el("span", { class: "sp" }),
-      el("button", { class: "icon", title: "Open in a separate window", onclick: () => this.app.popOut(this.path) }, "⧉"),
+      el("button", { class: "icon popout", title: "Open in a separate window", onclick: () => this.app.popOut(this.path) }, "⧉"),
     );
   }
 

@@ -1,37 +1,66 @@
 {
   "name": "workspacepy",
   "displayName": "WorkspacePy",
-  "description": "MATLAB-style workspace for Jupyter: variables on the right, object viewer below your code.",
-  "version": "0.2.1",
+  "description": "MATLAB-style workspace for Jupyter: variable table in a side view, object viewer beside your code. Both draggable.",
+  "version": "0.3.0",
   "publisher": "workspacepy",
   "license": "MIT",
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["Data Science", "Notebooks", "Visualization"],
-  "extensionKind": ["workspace"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Data Science",
+    "Notebooks",
+    "Visualization"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onWebviewPanel:workspacepy.viewer"
+  ],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
-        { "id": "workspacepy", "title": "WorkspacePy", "icon": "media/icon.svg" }
-      ],
-      "panel": [
-        { "id": "workspacepyPanel", "title": "Variable Viewer", "icon": "media/icon.svg" }
+        {
+          "id": "workspacepy",
+          "title": "WorkspacePy",
+          "icon": "media/icon.svg"
+        }
       ]
     },
     "views": {
       "workspacepy": [
-        { "id": "workspacepy.workspace", "name": "Workspace", "type": "webview" }
-      ],
-      "workspacepyPanel": [
-        { "id": "workspacepy.viewer", "name": "Variable Viewer", "type": "webview" }
+        {
+          "id": "workspacepy.workspace",
+          "name": "Workspace",
+          "type": "webview"
+        }
       ]
     },
     "commands": [
-      { "command": "workspacepy.open", "title": "WorkspacePy: Show Workspace" },
-      { "command": "workspacepy.layoutHelp", "title": "WorkspacePy: MATLAB Layout Help" },
-      { "command": "workspacepy.reconnect", "title": "WorkspacePy: Reconnect to Kernel" },
-      { "command": "workspacepy.openUrl", "title": "WorkspacePy: Connect with a URL…" }
+      {
+        "command": "workspacepy.open",
+        "title": "WorkspacePy: Show Workspace"
+      },
+      {
+        "command": "workspacepy.openViewer",
+        "title": "WorkspacePy: Show Variable Viewer"
+      },
+      {
+        "command": "workspacepy.layoutHelp",
+        "title": "WorkspacePy: MATLAB Layout Help"
+      },
+      {
+        "command": "workspacepy.reconnect",
+        "title": "WorkspacePy: Reconnect to Kernel"
+      },
+      {
+        "command": "workspacepy.openUrl",
+        "title": "WorkspacePy: Connect with a URL…"
+      }
     ],
     "configuration": {
       "title": "WorkspacePy",
@@ -49,5 +78,8 @@
       }
     }
   },
-  "repository": { "type": "git", "url": "https://github.com/YOUR_USER/workspacepy" }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USER/workspacepy"
+  }
 }

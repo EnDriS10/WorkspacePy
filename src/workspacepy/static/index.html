@@ -10,19 +10,18 @@
 <body>
 <header id="topbar">
   <h1>WorkspacePy</h1>
-  <span id="status">connected</span>
   <span class="spacer"></span>
-  <label title="Show functions, classes and modules"><input type="checkbox" id="showHidden"> functions/modules</label>
-  <button id="btnLayout" class="icon" title="Toggle layout (side by side / stacked)">⬓</button>
-  <button id="btnTheme" class="icon" title="Light/dark theme">◐</button>
-  <button id="btnRefresh" class="icon" title="Refresh">⟳</button>
+  <button id="btnLayout" class="icon" title="Toggle layout" aria-label="Toggle layout">⬓</button>
+  <button id="btnTheme" class="icon" title="Light / dark theme" aria-label="Toggle theme">◐</button>
+  <button id="btnRefresh" class="icon" title="Refresh" aria-label="Refresh">⟳</button>
 </header>
 
 <div id="main">
   <section id="wsPane" aria-label="Workspace">
     <div id="wsTools">
-      <input type="search" id="filter" placeholder="Filter variables…" aria-label="Filter variables">
-      <button id="btnCols" title="Choose columns (like right-clicking the MATLAB header)">Columns ▾</button>
+      <span id="status" class="dot" title="Connected" role="status"></span>
+      <input type="search" id="filter" placeholder="Filter" aria-label="Filter variables">
+      <button id="btnCols" class="icon" title="Columns" aria-label="Choose columns">▾</button>
     </div>
     <div id="wsScroll"></div>
   </section>
@@ -30,7 +29,7 @@
   <section id="viewPane" aria-label="Object viewers">
     <div id="tabs" role="tablist"></div>
     <div id="viewBody">
-      <div id="placeholder">Double-click a variable to open it.<br>You can keep several open at once, in tabs.</div>
+      <div id="placeholder">Double-click a variable to open it.</div>
     </div>
   </section>
 </div>

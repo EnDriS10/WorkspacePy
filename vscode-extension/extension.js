@@ -1,8 +1,10 @@
 // WorkspacePy for VS Code.
 //
-// Two webview views, MATLAB style:
-//   * "Workspace"       (side bar)  - the variable table; drag it to the right-hand Secondary Side Bar.
-//   * "Variable Viewer" (bottom panel) - the object tabs; it opens when you double-click a variable.
+// Two webviews, MATLAB style:
+//   * "Workspace"       (side bar view) - the variable table. Drag it anywhere (Secondary Side Bar, bottom panel...).
+//   * "Variable Viewer" (editor tab)    - opens to the RIGHT of your code when you double-click a variable.
+//                                         It is a normal editor tab, so you can drag it to any editor group,
+//                                         split it, or float it into its own window.
 // Both are thin wrappers around iframes served by the kernel (workspacepy.start()), so they see and
 // edit the variables of the running notebook. The extension only reads ~/.workspacepy/active.json.
 "use strict";
@@ -14,7 +16,7 @@ const http = require("http");
 const crypto = require("crypto");
 
 const WORKSPACE_VIEW = "workspacepy.workspace";
-const VIEWER_VIEW = "workspacepy.viewer";
+const VIEWER_TYPE = "workspacepy.viewer";
 
 function registryFile() {
   const custom = vscode.workspace.getConfiguration("workspacepy").get("registryPath");
@@ -40,22 +42,35 @@ function readEntries() {
 }
 
 // ----------------------------------------------------------------------------- HTML of the wrappers
-function wrapperHtml(src) {
+function wrapperHtml(src, bgVar = "--vscode-editor-background") {
   const nonce = crypto.randomBytes(16).toString("hex");
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src http://localhost:* http://127.0.0.1:* https:; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
 <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:transparent}
-iframe{position:fixed;inset:0;width:100%;height:100%;border:0;color-scheme:normal}</style></head>
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;color-scheme:normal}
+body{background:var(${bgVar})}</style></head>
 <body>
 <iframe id="f" src="${src}" title="WorkspacePy"></iframe>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const f = document.getElementById("f");
   const theme = () => (document.body.classList.contains("vscode-light") || document.body.classList.contains("vscode-high-contrast-light")) ? "light" : "dark";
-  const sendTheme = () => { if (f.contentWindow) f.contentWindow.postMessage({ workspacepy: "theme", theme: theme() }, "*"); };
+  const BG = ${JSON.stringify(bgVar)};
+  const MAP = { "--bg": BG, "--text": "--vscode-foreground", "--muted": "--vscode-descriptionForeground",
+    "--border": "--vscode-widget-border", "--accent": "--vscode-textLink-foreground", "--panel-2": "--vscode-input-background",
+    "--font": "--vscode-font-family", "--mono": "--vscode-editor-font-family" };
+  const sendTheme = () => {
+    if (!f.contentWindow) return;
+    const cs = getComputedStyle(document.documentElement), vars = {};
+    for (const [k, src] of Object.entries(MAP)) { const v = cs.getPropertyValue(src).trim(); if (v) vars[k] = v; }
+    if (!vars["--border"]) { const p = cs.getPropertyValue("--vscode-panel-border").trim(); if (p) vars["--border"] = p; }
+    f.contentWindow.postMessage({ workspacepy: "theme", theme: theme() }, "*");
+    f.contentWindow.postMessage({ workspacepy: "colors", vars }, "*");
+  };
   f.addEventListener("load", sendTheme);
-  new MutationObserver(sendTheme).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  new MutationObserver(sendTheme).observe(document.body, { attributes: true, attributeFilter: ["class", "style"] });
+  new MutationObserver(sendTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
   window.addEventListener("message", (e) => {
     if (e.source === f.contentWindow) {                       // from the page inside the iframe
       if (e.data && e.data.workspacepy === "open") vscode.postMessage({ type: "open", path: e.data.path });
@@ -77,6 +92,54 @@ const NO_KERNEL = placeholderHtml(
   `This panel connects by itself.`);
 
 // ----------------------------------------------------------------------------- views
+// Build the iframe URL for a panel (token kept intact, port mapped for remote windows).
+async function buildSrc(entry, mode, webview) {
+  const u = new URL(entry.url);
+  const port = Number(u.port);
+  u.hostname = "localhost";                       // lets VS Code map/forward the port (also in remote windows)
+  u.searchParams.set("mode", mode);
+  webview.options = { enableScripts: true, portMapping: [{ webviewPort: port, extensionHostPort: port }] };
+  let src = u.toString();
+  try {
+    // toString(true) = skip encoding: the default encoding turns "?token=x&mode=y" into "?token%3Dx%26mode%3Dy",
+    // and the server would then reject the request with "Invalid token".
+    const ext = (await vscode.env.asExternalUri(vscode.Uri.parse(src))).toString(true);
+    if (/[?&]token=/.test(ext)) src = ext;     // never use a URL that lost its token
+  } catch (e) { /* keep the local URL */ }
+  return src.replace(/"/g, "&quot;");
+}
+
+// The Variable Viewer: an editor-area tab that opens beside the code.
+class ViewerPanel {
+  constructor(controller) { this.controller = controller; this.panel = undefined; }
+
+  attach(panel) {
+    this.panel = panel;
+    panel.iconPath = vscode.Uri.file(path.join(__dirname, "media", "icon.svg"));
+    panel.onDidDispose(() => { if (this.panel === panel) this.panel = undefined; });
+    panel.webview.onDidReceiveMessage((m) => this.controller.onMessage("viewer", m));
+    this.render();
+  }
+
+  // Show the viewer. First time: to the right of the active editor, without stealing focus.
+  // Later: reveal it where the user left it (so a dragged tab stays where it was dropped).
+  show() {
+    if (this.panel) { this.panel.reveal(undefined, true); return; }
+    const panel = vscode.window.createWebviewPanel(VIEWER_TYPE, "Variable Viewer",
+      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+      { enableScripts: true, retainContextWhenHidden: true });
+    this.attach(panel);
+  }
+
+  async render() {
+    if (!this.panel) return;
+    const entry = this.controller.entry;
+    if (!entry) { this.panel.webview.html = NO_KERNEL; return; }
+    const src = await buildSrc(entry, "viewer", this.panel.webview);
+    if (this.panel) this.panel.webview.html = wrapperHtml(src, "--vscode-editor-background");
+  }
+}
+
 class PanelProvider {
   constructor(mode, controller) { this.mode = mode; this.controller = controller; this.view = undefined; }
 
@@ -92,19 +155,8 @@ class PanelProvider {
     if (!this.view) return;
     const entry = this.controller.entry;
     if (!entry) { this.view.webview.html = NO_KERNEL; return; }
-    const u = new URL(entry.url);
-    const port = Number(u.port);
-    u.hostname = "localhost";                       // lets VS Code map/forward the port (also in remote windows)
-    u.searchParams.set("mode", this.mode);
-    this.view.webview.options = { enableScripts: true, portMapping: [{ webviewPort: port, extensionHostPort: port }] };
-    let src = u.toString();
-    try {
-      // toString(true) = skip encoding: the default encoding turns "?token=x&mode=y" into "?token%3Dx%26mode%3Dy",
-      // and the server would then reject the request with "Invalid token".
-      const ext = (await vscode.env.asExternalUri(vscode.Uri.parse(src))).toString(true);
-      if (/[?&]token=/.test(ext)) src = ext;     // never use a URL that lost its token
-    } catch (e) { /* keep the local URL */ }
-    this.view.webview.html = wrapperHtml(src.replace(/"/g, "&quot;"));
+    const src = await buildSrc(entry, this.mode, this.view.webview);
+    if (this.view) this.view.webview.html = wrapperHtml(src, "--vscode-sideBar-background");
   }
 }
 
@@ -115,7 +167,7 @@ class Controller {
     this.seen = new Set();
     this.warned = new Set();
     this.workspace = new PanelProvider("workspace", this);
-    this.viewer = new PanelProvider("viewer", this);
+    this.viewer = new ViewerPanel(this);
   }
 
   // Pick the newest live kernel (or the pinned one) and refresh the wrappers if it changed.
@@ -138,10 +190,7 @@ class Controller {
     else await vscode.commands.executeCommand(WORKSPACE_VIEW + ".focus");
   }
 
-  async revealViewer() {
-    if (this.viewer.view) this.viewer.view.show(true);
-    else await vscode.commands.executeCommand(VIEWER_VIEW + ".focus");
-  }
+  revealViewer() { this.viewer.show(); }
 
   onMessage(mode, m) {
     if (mode === "workspace" && m && m.type === "open") this.revealViewer();
@@ -176,15 +225,19 @@ class Controller {
 const LAYOUT_HELP =
   "MATLAB layout: 1) Click the WorkspacePy icon in the Activity Bar. " +
   "2) Drag the 'Workspace' view to the right edge of the window (it creates the Secondary Side Bar). " +
-  "The 'Variable Viewer' opens by itself in the bottom panel when you double-click a variable. " +
-  "Tip: View > Appearance > Align Panel > Center keeps the viewer under your code only.";
+  "The 'Variable Viewer' opens by itself to the right of your code when you double-click a variable; " +
+  "it is a normal editor tab, so drag it to any other editor group or split it. " +
+  "You can also drag the 'Workspace' view to the bottom panel or the left side bar.";
 
 function activate(context) {
   const c = new Controller();
   const opts = { webviewOptions: { retainContextWhenHidden: true } };
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(WORKSPACE_VIEW, c.workspace, opts),
-    vscode.window.registerWebviewViewProvider(VIEWER_VIEW, c.viewer, opts),
+    vscode.window.registerWebviewPanelSerializer(VIEWER_TYPE, {
+      async deserializeWebviewPanel(panel) { panel.webview.options = { enableScripts: true }; c.viewer.attach(panel); },
+    }),
+    vscode.commands.registerCommand("workspacepy.openViewer", () => c.revealViewer()),
     vscode.commands.registerCommand("workspacepy.open", () => c.revealWorkspace()),
     vscode.commands.registerCommand("workspacepy.reconnect", () => { c.pinned = undefined; c.refresh(true); }),
     vscode.commands.registerCommand("workspacepy.layoutHelp", async () => {

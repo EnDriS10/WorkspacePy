@@ -153,27 +153,28 @@ Now create some variables and double-click them. Try the [demo notebook](example
 ## 🧭 The MATLAB layout in VS Code
 
 <div align="center">
-<img src="docs/images/layout.svg" alt="Code in the center, Workspace on the right, Variable Viewer below" width="860">
+<img src="docs/images/layout.svg" alt="Code on the left, Variable Viewer to its right, Workspace on the far right" width="860">
 </div>
 
-The extension adds two views: **Workspace** (your variables) and **Variable Viewer** (the object tabs). Together with your notebook that gives you the classic MATLAB arrangement: **code in the middle, workspace on the right, viewer below the code** — and the viewer opens by itself when you double-click a variable.
+The extension adds two views: **Workspace** (your variables) and **Variable Viewer** (the object tabs). Together with your notebook that gives you the classic MATLAB arrangement: **code on the left, the viewer to the right of your code, the workspace on the far right**. The viewer opens by itself, beside your code, when you double-click a variable.
+
+Both are fully movable: the **Variable Viewer is a normal editor tab** (drag it to any editor group, split it, or pull it into its own window) and the **Workspace is a normal view** (drag it to the left bar, the right bar or the bottom panel).
 
 ### Install the extension
 
-The repository ships a ready-to-install file, `vscode-extension/workspacepy-0.2.1.vsix`.
+The repository ships a ready-to-install file, `vscode-extension/workspacepy-0.3.0.vsix`.
 
 - **VS Code UI:** *Extensions* panel → `···` menu → **Install from VSIX…** → pick the file.
-- **Terminal:** `code --install-extension vscode-extension/workspacepy-0.2.1.vsix`
+- **Terminal:** `code --install-extension vscode-extension/workspacepy-0.3.0.vsix`
 - **Rebuild it yourself:** `cd vscode-extension && npx @vscode/vsce package`
 
 ### Arrange the layout (one time)
 
 1. Click the **WorkspacePy** icon (a small grid) in the Activity Bar.
 2. **Drag the "Workspace" view to the right edge of the window.** VS Code creates the *Secondary Side Bar* there. (Alternative: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> → **View: Move View** and choose the Secondary Side Bar.)
-3. *Optional:* **View → Appearance → Align Panel → Center**, so the viewer sits under your code only and the workspace keeps the full height on the right.
-4. Run `workspacepy.start()` in your notebook and double-click a variable. VS Code remembers the layout for next time.
+3. Run `workspacepy.start()` in your notebook and double-click a variable: the viewer opens to the right of your code. To put it elsewhere, drag its tab to another editor group. VS Code remembers the layout for next time.
 
-Extension commands (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>): **WorkspacePy: Show Workspace**, **MATLAB Layout Help**, **Reconnect to Kernel**, **Connect with a URL…**. Setting `workspacepy.autoReveal` controls whether the Workspace view pops up when a kernel starts.
+Extension commands (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>): **WorkspacePy: Show Workspace**, **Show Variable Viewer**, **MATLAB Layout Help**, **Reconnect to Kernel**, **Connect with a URL…**. Setting `workspacepy.autoReveal` controls whether the Workspace view pops up when a kernel starts.
 
 > **Status: beta.** The Python library and the web UI are covered by automated tests. The extension was tested against a simulated VS Code API and with its panels loaded in Chromium (message relay, theme sync, version check), but it has **not** been run inside a real VS Code window by the author. If a panel stays empty, use the Simple Browser fallback above and open an issue.
 
@@ -269,7 +270,7 @@ workspacepy.stop()
  Jupyter kernel (your Python process)                     VS Code panels / browser
 ┌───────────────────────────────────────────┐            ┌───────────────────────────┐
 │ user_ns ◄─ Workspace ◄─ Inspectors (OOP)  │  HTTP+JSON │ Workspace   (side bar)    │
-│                 ▲                         │◄──────────►│ Variable Viewer (panel)   │
+│                 ▲                         │◄──────────►│ Variable Viewer (editor)  │
 │        WorkspaceServer  (daemon thread)   │ 127.0.0.1  │ plain HTML/JS, no build   │
 │        loopback only · random token       │  + token   └───────────────────────────┘
 └───────────────────────────────────────────┘
@@ -289,7 +290,7 @@ src/workspacepy/
 ├── plots.py          line / histogram / bars / image data (with decimation)
 ├── inspectors/       base.py · arrays.py · symbolic.py · tabular.py · generic.py
 └── static/           the web UI (no build step; KaTeX vendored for offline LaTeX)
-vscode-extension/     Workspace + Variable Viewer webview views
+vscode-extension/     Workspace (view) + Variable Viewer (editor tab)
 tests/                pytest suite
 examples/             demo notebook and script
 ```

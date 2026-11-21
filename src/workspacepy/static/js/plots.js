@@ -2,7 +2,13 @@
 "use strict";
 
 const Plots = (() => {
-  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888";
+  // Resolve a CSS variable to a concrete color (canvas cannot parse var()/color-mix itself).
+  let probe = null;
+  const css = (n) => {
+    if (!probe) { probe = document.createElement("span"); probe.style.display = "none"; document.body.append(probe); }
+    probe.style.color = ""; probe.style.color = `var(${n}, #888)`;
+    return getComputedStyle(probe).color || "#888";
+  };
   const SERIES = ["#2f7dd1", "#e0782b", "#2ea36b", "#c2453f", "#8b5fc7", "#b58b00", "#17a2b8", "#d6579b"];
 
   function niceTicks(lo, hi, n = 6) {
@@ -22,7 +28,7 @@ const Plots = (() => {
     const g = canvas.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, r.width, r.height);
-    g.font = "11px " + css("--mono");
+    g.font = "11px " + (getComputedStyle(document.documentElement).getPropertyValue("--mono").trim() || "monospace");
     return { g, w: r.width, h: r.height };
   }
 
@@ -91,7 +97,7 @@ const Plots = (() => {
     const xr = niceTicks(d.edges[0], d.edges[d.edges.length - 1]), yr = niceTicks(0, Math.max(...d.counts));
     yr.a = 0;
     const f = frame(g, w, h, xr, yr, "value");
-    g.fillStyle = SERIES[0]; g.strokeStyle = css("--panel");
+    g.fillStyle = SERIES[0]; g.strokeStyle = css("--bg");
     d.counts.forEach((c, i) => {
       const x0 = f.X(d.edges[i]), x1 = f.X(d.edges[i + 1]), y = f.Y(c);
       g.fillRect(x0, y, Math.max(1, x1 - x0), f.Y(0) - y); g.strokeRect(x0, y, Math.max(1, x1 - x0), f.Y(0) - y);
